@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:id="@+id/Data"
+        android:layout_width="100dp"
+        android:layout_height="35dp"
+        android:layout_marginStart="108dp"
+        android:layout_marginTop="30dp"
+        android:background="@drawable/rounded_bg"
+        android:orientation="horizontal"
+        android:gravity="center"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/bluetooth"
+            android:imageTint="#000000"
+            android:layout_marginEnd="20dp" />
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/wifi"
+            android:imageTint="#000000" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/Rules"
+        android:layout_width="35dp"
+        android:layout_height="35dp"
+        android:layout_marginStart="9dp"
+        android:background="@drawable/rounded_bg"
+        android:orientation="horizontal"
+        android:gravity="center"
+        app:layout_constraintStart_toEndOf="@id/Data"
+        app:layout_constraintTop_toTopOf="@id/Data">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/security"
+            android:imageTint="#000000" />
+
+    </LinearLayout>
+
+    <View
+        android:id="@+id/Main"
+        android:layout_width="0dp"
+        android:layout_height="150dp"
+        android:layout_marginStart="30dp"
+        android:layout_marginEnd="30dp"
+        android:layout_marginBottom="30dp"
+        android:layout_marginTop="400dp"
+        android:background="@drawable/rounded_bg"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/Data"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <ImageView
+        android:id="@+id/imageView2"
+        android:layout_width="245dp"
+        android:layout_height="257dp"
+        app:srcCompat="@drawable/IzbushkaImg"
+        tools:layout_editor_absoluteX="58dp"
+        tools:layout_editor_absoluteY="140dp" />
+
+    <LinearLayout
+        android:id="@+id/ReloadButton"
+        android:layout_width="140dp"
+        android:layout_height="30dp"
+        android:background="@drawable/rounded_button_bg"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="30dp"
+        app:layout_constraintStart_toStartOf="@id/Main"
+        app:layout_constraintEnd_toEndOf="@id/Main"
+        app:layout_constraintBottom_toBottomOf="@id/Main">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/reload"
+            android:imageTint="#000000"
+            android:layout_marginEnd="6dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Переподключиться"
+            android:textColor="#000000"
+            android:textSize="10sp"
+            android:fontFamily="@font/jeju_gothic" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/WaitTimer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Ожидание : 10 секунд"
+        android:textSize="12sp"
+        android:textColor="#676767"
+        android:fontFamily="@font/jeju_gothic"
+        android:layout_marginBottom="20dp"
+        app:layout_constraintStart_toStartOf="@id/Main"
+        app:layout_constraintEnd_toEndOf="@id/Main"
+        app:layout_constraintBottom_toTopOf="@id/ReloadButton" />
+
+    <TextView
+        android:id="@+id/WaitingForConnect"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Ожидаем подключение"
+        android:textSize="20sp"
+        android:textColor="#000000"
+        android:fontFamily="@font/jeju_gothic"
+        android:layout_marginBottom="10dp"
+        app:layout_constraintStart_toStartOf="@id/Main"
+        app:layout_constraintEnd_toEndOf="@id/Main"
+        app:layout_constraintBottom_toTopOf="@id/WaitTimer" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
