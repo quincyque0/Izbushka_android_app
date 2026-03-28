@@ -22,14 +22,12 @@
             android:layout_width="20dp"
             android:layout_height="20dp"
             android:src="@drawable/bluetooth"
-            android:imageTint="#000000"
             android:layout_marginEnd="20dp" />
 
         <ImageView
             android:layout_width="20dp"
             android:layout_height="20dp"
-            android:src="@drawable/wifi"
-            android:imageTint="#000000" />
+            android:src="@drawable/wifi" />
 
     </LinearLayout>
 
@@ -47,8 +45,7 @@
         <ImageView
             android:layout_width="20dp"
             android:layout_height="20dp"
-            android:src="@drawable/security"
-            android:imageTint="#000000" />
+            android:src="@drawable/security" />
 
     </LinearLayout>
 
@@ -70,7 +67,7 @@
         android:id="@+id/imageView2"
         android:layout_width="245dp"
         android:layout_height="257dp"
-        app:srcCompat="@drawable/IzbushkaImg"
+        app:srcCompat="@drawable/zbushkamg"
         tools:layout_editor_absoluteX="58dp"
         tools:layout_editor_absoluteY="140dp" />
 
@@ -90,7 +87,6 @@
             android:layout_width="20dp"
             android:layout_height="20dp"
             android:src="@drawable/reload"
-            android:imageTint="#000000"
             android:layout_marginEnd="6dp" />
 
         <TextView
