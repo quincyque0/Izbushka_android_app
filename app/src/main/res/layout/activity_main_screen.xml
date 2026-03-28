@@ -1,0 +1,286 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:id="@+id/buttonLeft"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:background="@drawable/rounded_bg"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginEnd="28dp"
+        app:layout_constraintEnd_toStartOf="@id/infoPanel"
+        app:layout_constraintTop_toTopOf="@id/infoPanel"
+        app:layout_constraintBottom_toBottomOf="@id/infoPanel">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/settings"
+            android:imageTint="#000000" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/infoPanel"
+        android:layout_width="100dp"
+        android:layout_height="35dp"
+        android:layout_marginStart="108dp"
+        android:layout_marginTop="30dp"
+        android:background="@drawable/rounded_bg"
+        android:orientation="horizontal"
+        android:gravity="center"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/bluetooth"
+            android:imageTint="#000000"
+            android:layout_marginEnd="20dp" />
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/wifi"
+            android:imageTint="#000000" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/buttonRules"
+        android:layout_width="35dp"
+        android:layout_height="35dp"
+        android:layout_marginStart="9dp"
+        android:background="@drawable/rounded_bg"
+        android:orientation="horizontal"
+        android:gravity="center"
+        app:layout_constraintStart_toEndOf="@id/infoPanel"
+        app:layout_constraintTop_toTopOf="@id/infoPanel">
+
+        <ImageView
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:src="@drawable/security"
+            android:imageTint="#000000" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/buttonRight"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:background="@drawable/rounded_bg"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginStart="28dp"
+        app:layout_constraintStart_toEndOf="@id/buttonRules"
+        app:layout_constraintTop_toTopOf="@id/infoPanel"
+        app:layout_constraintBottom_toBottomOf="@id/infoPanel">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/exit"
+            android:imageTint="#000000" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/buttonAboveJoystick"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:background="@drawable/rounded_bg"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginStart="26dp"
+        android:layout_marginBottom="10dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/joystickOuter">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/emoji"
+            android:imageTint="#000000" />
+    </LinearLayout>
+
+    <View
+        android:id="@+id/joystickOuter"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:background="@drawable/joystick_outer_bg"
+        android:layout_marginEnd="7dp"
+        android:layout_marginStart="26dp"
+        android:layout_marginBottom="30dp"
+        app:layout_constraintEnd_toStartOf="@id/mainPanel"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <View
+        android:id="@+id/joystickKnob"
+        android:layout_width="65dp"
+        android:layout_height="65dp"
+        android:background="@drawable/joystick_knob_bg"
+        app:layout_constraintTop_toTopOf="@id/joystickOuter"
+        app:layout_constraintBottom_toBottomOf="@id/joystickOuter"
+        app:layout_constraintStart_toStartOf="@id/joystickOuter"
+        app:layout_constraintEnd_toEndOf="@id/joystickOuter" />
+
+    <View
+        android:id="@+id/mainPanel"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:layout_marginEnd="30dp"
+        android:layout_marginBottom="30dp"
+        android:background="@drawable/rounded_bg"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/buttonAboveMain"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:background="@drawable/rounded_bg"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginEnd="30dp"
+        android:layout_marginBottom="10dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/mainPanel">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/microphone"
+            android:imageTint="#000000" />
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/robotImage"
+        android:layout_width="307dp"
+        android:layout_height="322dp"
+        app:srcCompat="@drawable/IzbushkaActive"
+        tools:layout_editor_absoluteX="25dp"
+        tools:layout_editor_absoluteY="107dp" />
+
+    <LinearLayout
+        android:id="@+id/temperatureRow"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="12dp"
+        app:layout_constraintStart_toStartOf="@id/mainPanel"
+        app:layout_constraintTop_toTopOf="@id/mainPanel">
+
+        <ImageView
+            android:layout_width="25dp"
+            android:layout_height="25dp"
+            android:src="@drawable/temperature"
+            android:imageTint="#000000"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Температура: 60"
+            android:textSize="10sp"
+            android:textColor="#000000"
+            android:singleLine="true"
+            android:fontFamily="@font/jeju_gothic" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/batteryRow"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="10dp"
+        app:layout_constraintStart_toStartOf="@id/mainPanel"
+        app:layout_constraintTop_toBottomOf="@id/temperatureRow">
+
+        <ImageView
+            android:layout_width="25dp"
+            android:layout_height="25dp"
+            android:src="@drawable/battery"
+            android:imageTint="#000000"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Заряд: 100%"
+            android:textSize="10sp"
+            android:textColor="#000000"
+            android:singleLine="true"
+            android:fontFamily="@font/jeju_gothic" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/distanceRow"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="10dp"
+        app:layout_constraintStart_toStartOf="@id/mainPanel"
+        app:layout_constraintTop_toBottomOf="@id/batteryRow">
+
+        <ImageView
+            android:layout_width="25dp"
+            android:layout_height="25dp"
+            android:src="@drawable/distance"
+            android:imageTint="#000000"
+            android:layout_marginEnd="8dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Расстояние: 10м"
+            android:textSize="10sp"
+            android:textColor="#000000"
+            android:singleLine="true"
+            android:fontFamily="@font/jeju_gothic" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/autoControlRow"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginTop="-5dp"
+        app:layout_constraintStart_toStartOf="@id/mainPanel"
+        app:layout_constraintEnd_toEndOf="@id/mainPanel"
+        app:layout_constraintTop_toBottomOf="@id/distanceRow">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="       Авто управление"
+            android:textSize="10sp"
+            android:textColor="#000000"
+            android:fontFamily="@font/jeju_gothic" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/autoControlSwitch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:scaleX="0.8"
+            android:scaleY="0.8"
+            app:thumbTint="#000000"
+            app:trackTint="#FFFFFF" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
