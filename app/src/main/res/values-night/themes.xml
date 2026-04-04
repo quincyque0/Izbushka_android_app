@@ -1,7 +1,17 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
+    <!-- Dark theme -->
     <style name="Base.Theme.Izbushka_android_app" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+        <item name="colorPrimary">@color/dark_primary</item>
+        <item name="colorPrimaryVariant">@color/dark_primary_variant</item>
+        <item name="colorOnPrimary">@color/dark_on_primary</item>
+        <item name="colorSecondary">@color/dark_secondary</item>
+        <item name="colorSecondaryVariant">@color/dark_secondary_variant</item>
+        <item name="colorOnSecondary">@color/dark_on_secondary</item>
+        <item name="android:colorBackground">@color/dark_background</item>
+        <item name="android:windowBackground">@color/dark_background</item>
+        <item name="android:textColor">@color/dark_text_primary</item>
+        <item name="android:textColorSecondary">@color/dark_text_secondary</item>
     </style>
+
+    <style name="Theme.Izbushka_android_app" parent="Base.Theme.Izbushka_android_app" />
 </resources>

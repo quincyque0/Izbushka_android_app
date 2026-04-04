@@ -15,6 +15,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -41,6 +42,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val prefs = getSharedPreferences("app_settings", MODE_PRIVATE)
+        val isDarkTheme = prefs.getBoolean("dark_theme", false)
+        if (isDarkTheme) {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+        } else {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+        }
+
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
@@ -119,12 +128,8 @@ class MainActivity : AppCompatActivity() {
 
         startConnectionTimer()
 
-
         testCheckWiFiConnection()
-
-        // checkWiFiConnection()
     }
-
 
     private fun testCheckWiFiConnection() {
         handler.postDelayed({
@@ -135,7 +140,6 @@ class MainActivity : AppCompatActivity() {
             }
         }, 3000)
     }
-
 
     private fun checkWiFiConnection() {
         val connectivityManager = getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager

@@ -1,5 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
+    <!-- Light Theme Colors -->
+    <color name="light_primary">#2196F3</color>
+    <color name="light_primary_variant">#1976D2</color>
+    <color name="light_on_primary">#FFFFFF</color>
+    <color name="light_secondary">#03DAC6</color>
+    <color name="light_secondary_variant">#018786</color>
+    <color name="light_on_secondary">#000000</color>
+    <color name="light_background">#FFFFFF</color>
+    <color name="light_text_primary">#000000</color>
+    <color name="light_text_secondary">#676767</color>
+
+    <!-- Dark Theme Colors -->
+    <color name="dark_primary">#BB86FC</color>
+    <color name="dark_primary_variant">#3700B3</color>
+    <color name="dark_on_primary">#000000</color>
+    <color name="dark_secondary">#03DAC6</color>
+    <color name="dark_secondary_variant">#03DAC6</color>
+    <color name="dark_on_secondary">#000000</color>
+    <color name="dark_background">#121212</color>
+    <color name="dark_text_primary">#FFFFFF</color>
+    <color name="dark_text_secondary">#B0B0B0</color>
+
+    <!-- Common Colors -->
+    <color name="success_green">#4CAF50</color>
+    <color name="error_red">#F44336</color>
+    <color name="warning_yellow">#FFC107</color>
 </resources>

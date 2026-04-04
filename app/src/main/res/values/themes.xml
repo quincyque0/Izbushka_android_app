@@ -1,8 +1,16 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
+    <!-- Light theme -->
     <style name="Base.Theme.Izbushka_android_app" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <item name="colorPrimary">@color/light_primary</item>
+        <item name="colorPrimaryVariant">@color/light_primary_variant</item>
+        <item name="colorOnPrimary">@color/light_on_primary</item>
+        <item name="colorSecondary">@color/light_secondary</item>
+        <item name="colorSecondaryVariant">@color/light_secondary_variant</item>
+        <item name="colorOnSecondary">@color/light_on_secondary</item>
+        <item name="android:colorBackground">@color/light_background</item>
+        <item name="android:windowBackground">@color/light_background</item>
+        <item name="android:textColor">@color/light_text_primary</item>
+        <item name="android:textColorSecondary">@color/light_text_secondary</item>
     </style>
 
     <style name="Theme.Izbushka_android_app" parent="Base.Theme.Izbushka_android_app" />

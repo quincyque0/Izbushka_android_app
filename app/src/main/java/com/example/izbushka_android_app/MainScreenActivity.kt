@@ -15,7 +15,7 @@ import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
-import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 
@@ -229,15 +229,18 @@ class MainScreenActivity : AppCompatActivity() {
 
         val switchSounds = dialog.findViewById<SwitchCompat>(R.id.switchSounds)
         val switchVibration = dialog.findViewById<SwitchCompat>(R.id.switchVibration)
+        val switchDarkTheme = dialog.findViewById<SwitchCompat>(R.id.switchDarkTheme)
         val seekBarSensitivity = dialog.findViewById<SeekBar>(R.id.seekBarSensitivity)
         val editTextAddress = dialog.findViewById<EditText>(R.id.editTextAddress)
 
         switchSounds.isSoundEffectsEnabled = false
         switchVibration.isSoundEffectsEnabled = false
+        switchDarkTheme.isSoundEffectsEnabled = false
         seekBarSensitivity.isSoundEffectsEnabled = false
 
         switchSounds.isChecked = settingsManager.isSoundsEnabled()
         switchVibration.isChecked = settingsManager.isVibrationEnabled()
+        switchDarkTheme.isChecked = settingsManager.isDarkThemeEnabled()
         seekBarSensitivity.progress = settingsManager.getSensitivity()
 
         val savedAddress = settingsManager.getSharedPreferences().getString("server_address", "")
@@ -259,6 +262,16 @@ class MainScreenActivity : AppCompatActivity() {
             if (isChecked) {
                 settingsManager.vibrate(50)
             }
+        }
+
+        switchDarkTheme.setOnCheckedChangeListener { _, isChecked ->
+            settingsManager.setDarkThemeEnabled(isChecked)
+            val message = if (isChecked) "Темная тема включена" else "Светлая тема включена"
+            Toast.makeText(this@MainScreenActivity, message, Toast.LENGTH_SHORT).show()
+            if (settingsManager.isVibrationEnabled()) {
+                settingsManager.vibrate(50)
+            }
+            recreate()
         }
 
         seekBarSensitivity.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {

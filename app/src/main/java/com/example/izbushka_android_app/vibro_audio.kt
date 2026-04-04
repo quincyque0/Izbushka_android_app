@@ -6,6 +6,7 @@ import android.media.AudioManager
 import android.os.Vibrator
 import android.os.Build
 import android.os.VibrationEffect
+import androidx.appcompat.app.AppCompatDelegate
 
 class SettingsManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
@@ -16,11 +17,13 @@ class SettingsManager(context: Context) {
         private const val KEY_SOUNDS_ENABLED = "sounds_enabled"
         private const val KEY_VIBRATION_ENABLED = "vibration_enabled"
         private const val KEY_SENSITIVITY = "sensitivity"
+        private const val KEY_DARK_THEME = "dark_theme"
     }
 
     fun isSoundsEnabled(): Boolean = prefs.getBoolean(KEY_SOUNDS_ENABLED, true)
     fun isVibrationEnabled(): Boolean = prefs.getBoolean(KEY_VIBRATION_ENABLED, true)
     fun getSensitivity(): Int = prefs.getInt(KEY_SENSITIVITY, 50)
+    fun isDarkThemeEnabled(): Boolean = prefs.getBoolean(KEY_DARK_THEME, false)
 
     fun setSoundsEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SOUNDS_ENABLED, enabled).apply()
@@ -32,6 +35,19 @@ class SettingsManager(context: Context) {
 
     fun setSensitivity(value: Int) {
         prefs.edit().putInt(KEY_SENSITIVITY, value).apply()
+    }
+
+    fun setDarkThemeEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_DARK_THEME, enabled).apply()
+        applyTheme(enabled)
+    }
+
+    fun applyTheme(isDark: Boolean) {
+        if (isDark) {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
+        } else {
+            AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+        }
     }
 
     fun getSharedPreferences(): SharedPreferences = prefs
