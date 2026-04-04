@@ -8,7 +8,6 @@
     android:padding="24dp"
     android:background="@drawable/rounded_bg">
 
-    <!-- Заголовок -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -19,7 +18,6 @@
         android:fontFamily="@font/jeju_gothic"
         android:layout_marginBottom="20dp" />
 
-    <!-- Звуки -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -27,12 +25,12 @@
         android:gravity="center_vertical"
         android:layout_marginBottom="16dp">
 
-        <!--<ImageView
+        <ImageView
             android:layout_width="28dp"
             android:layout_height="28dp"
-            android:src="@drawable/ic_volume"
+            android:src="@drawable/volume"
             app:tint="#000000"
-            android:layout_marginEnd="12dp" />-->
+            android:layout_marginEnd="12dp" />
 
         <TextView
             android:layout_width="0dp"
@@ -52,7 +50,6 @@
             app:trackTint="#CCCCCC" />
     </LinearLayout>
 
-    <!-- Вибрация -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -60,12 +57,12 @@
         android:gravity="center_vertical"
         android:layout_marginBottom="16dp">
 
-        <!--<ImageView
+        <ImageView
             android:layout_width="28dp"
             android:layout_height="28dp"
-            android:src="@drawable/ic_vibration"
+            android:src="@drawable/vibration"
             app:tint="#000000"
-            android:layout_marginEnd="12dp" />-->
+            android:layout_marginEnd="12dp" />
 
         <TextView
             android:layout_width="0dp"
@@ -85,7 +82,6 @@
             app:trackTint="#CCCCCC" />
     </LinearLayout>
 
-    <!-- Тёмная тема -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -93,12 +89,12 @@
         android:gravity="center_vertical"
         android:layout_marginBottom="16dp">
 
-        <!--<ImageView
+        <ImageView
             android:layout_width="28dp"
             android:layout_height="28dp"
-            android:src="@drawable/ic_dark_theme"
+            android:src="@drawable/dark_theme"
             app:tint="#000000"
-            android:layout_marginEnd="12dp" />-->
+            android:layout_marginEnd="12dp" />
 
         <TextView
             android:layout_width="0dp"
@@ -118,7 +114,6 @@
             app:trackTint="#CCCCCC" />
     </LinearLayout>
 
-    <!-- Чувствительность -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -126,12 +121,12 @@
         android:gravity="center_vertical"
         android:layout_marginBottom="8dp">
 
-        <!--<ImageView
+        <ImageView
             android:layout_width="28dp"
             android:layout_height="28dp"
-            android:src="@drawable/ic_sensitivity"
+            android:src="@drawable/sensitivity"
             app:tint="#000000"
-            android:layout_marginEnd="12dp" />-->
+            android:layout_marginEnd="12dp" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -142,7 +137,6 @@
             android:fontFamily="@font/jeju_gothic" />
     </LinearLayout>
 
-    <!-- Слайдер чувствительности -->
     <SeekBar
         android:id="@+id/seekBarSensitivity"
         android:layout_width="match_parent"
@@ -154,14 +148,12 @@
         android:progressTint="#000000"
         android:progressBackgroundTint="#CCCCCC" />
 
-    <!-- Разделитель -->
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
         android:background="#E0E0E0"
         android:layout_marginBottom="20dp" />
 
-    <!-- Адрес подключения -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -172,16 +164,26 @@
         android:fontFamily="@font/jeju_gothic"
         android:layout_marginBottom="12dp" />
 
-    <EditText
-        android:id="@+id/editTextAddress"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:background="@drawable/rounded_bg"
-        android:paddingStart="16dp"
-        android:paddingEnd="16dp"
-        android:textSize="14sp"
-        android:textColor="#000000"
-        android:inputType="text"
-        android:singleLine="true" />
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <EditText
+            android:id="@+id/editTextAddress"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:background="@drawable/edit_text_bg"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:textSize="14sp"
+            android:textColor="#000000"
+            android:inputType="text"
+            android:singleLine="true"
+            android:layout_marginEnd="10dp" />
+
+    </LinearLayout>
 
 </LinearLayout>
