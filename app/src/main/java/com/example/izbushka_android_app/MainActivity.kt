@@ -181,7 +181,7 @@ class MainActivity : AppCompatActivity() {
             isConnecting = false
             Toast.makeText(this, "Успешно подключено через $connectionType", Toast.LENGTH_LONG).show()
 
-            val intent = Intent(this, ControlActivity::class.java)
+            val intent = Intent(this, MainScreenActivity::class.java)
             intent.putExtra("connection_type", connectionType)
             startActivity(intent)
             finish()

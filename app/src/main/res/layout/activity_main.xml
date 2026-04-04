@@ -6,46 +6,54 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <!-- Верхняя панель: инфо + rules, всё по центру как группа -->
     <LinearLayout
-        android:id="@+id/Data"
-        android:layout_width="100dp"
-        android:layout_height="35dp"
-        android:layout_marginStart="108dp"
-        android:layout_marginTop="30dp"
-        android:background="@drawable/rounded_bg"
+        android:id="@+id/topBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center"
+        android:gravity="center_vertical"
+        android:layout_marginTop="30dp"
         app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <ImageView
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:src="@drawable/bluetooth"
-            android:layout_marginEnd="20dp" />
+        <LinearLayout
+            android:id="@+id/Data"
+            android:layout_width="100dp"
+            android:layout_height="35dp"
+            android:background="@drawable/rounded_bg"
+            android:orientation="horizontal"
+            android:gravity="center">
 
-        <ImageView
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:src="@drawable/wifi" />
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/bluetooth"
+                android:layout_marginEnd="20dp" />
 
-    </LinearLayout>
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/wifi" />
 
-    <LinearLayout
-        android:id="@+id/Rules"
-        android:layout_width="35dp"
-        android:layout_height="35dp"
-        android:layout_marginStart="9dp"
-        android:background="@drawable/rounded_bg"
-        android:orientation="horizontal"
-        android:gravity="center"
-        app:layout_constraintStart_toEndOf="@id/Data"
-        app:layout_constraintTop_toTopOf="@id/Data">
+        </LinearLayout>
 
-        <ImageView
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:src="@drawable/security" />
+        <LinearLayout
+            android:id="@+id/Rules"
+            android:layout_width="35dp"
+            android:layout_height="35dp"
+            android:layout_marginStart="9dp"
+            android:background="@drawable/rounded_bg"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/security" />
+
+        </LinearLayout>
 
     </LinearLayout>
 
@@ -56,11 +64,9 @@
         android:layout_marginStart="30dp"
         android:layout_marginEnd="30dp"
         android:layout_marginBottom="30dp"
-        android:layout_marginTop="400dp"
         android:background="@drawable/rounded_bg"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/Data"
         app:layout_constraintBottom_toBottomOf="parent" />
 
     <ImageView
@@ -68,8 +74,10 @@
         android:layout_width="245dp"
         android:layout_height="257dp"
         app:srcCompat="@drawable/zbushkamg"
-        tools:layout_editor_absoluteX="58dp"
-        tools:layout_editor_absoluteY="140dp" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/topBar"
+        app:layout_constraintBottom_toTopOf="@id/Main" />
 
     <LinearLayout
         android:id="@+id/ReloadButton"

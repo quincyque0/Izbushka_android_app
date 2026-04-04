@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="@drawable/rounded_bg">
+
+    <!-- Заголовок -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Параметры"
+        android:textSize="22sp"
+        android:textColor="#000000"
+        android:gravity="center"
+        android:fontFamily="@font/jeju_gothic"
+        android:layout_marginBottom="20dp" />
+
+    <!-- Звуки -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <!--<ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@drawable/ic_volume"
+            app:tint="#000000"
+            android:layout_marginEnd="12dp" />-->
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Звуки"
+            android:textSize="16sp"
+            android:textColor="#000000"
+            android:fontFamily="@font/jeju_gothic" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/switchSounds"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            app:thumbTint="#000000"
+            app:trackTint="#CCCCCC" />
+    </LinearLayout>
+
+    <!-- Вибрация -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <!--<ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@drawable/ic_vibration"
+            app:tint="#000000"
+            android:layout_marginEnd="12dp" />-->
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Вибрация"
+            android:textSize="16sp"
+            android:textColor="#000000"
+            android:fontFamily="@font/jeju_gothic" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/switchVibration"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            app:thumbTint="#000000"
+            app:trackTint="#CCCCCC" />
+    </LinearLayout>
+
+    <!-- Тёмная тема -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <!--<ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@drawable/ic_dark_theme"
+            app:tint="#000000"
+            android:layout_marginEnd="12dp" />-->
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Темная тема"
+            android:textSize="16sp"
+            android:textColor="#000000"
+            android:fontFamily="@font/jeju_gothic" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/switchDarkTheme"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="false"
+            app:thumbTint="#000000"
+            app:trackTint="#CCCCCC" />
+    </LinearLayout>
+
+    <!-- Чувствительность -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+
+        <!--<ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@drawable/ic_sensitivity"
+            app:tint="#000000"
+            android:layout_marginEnd="12dp" />-->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Чувствительность"
+            android:textSize="16sp"
+            android:textColor="#000000"
+            android:fontFamily="@font/jeju_gothic" />
+    </LinearLayout>
+
+    <!-- Слайдер чувствительности -->
+    <SeekBar
+        android:id="@+id/seekBarSensitivity"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="100"
+        android:progress="30"
+        android:layout_marginBottom="24dp"
+        android:thumbTint="#000000"
+        android:progressTint="#000000"
+        android:progressBackgroundTint="#CCCCCC" />
+
+    <!-- Разделитель -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#E0E0E0"
+        android:layout_marginBottom="20dp" />
+
+    <!-- Адрес подключения -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Адрес подключения:"
+        android:textSize="18sp"
+        android:textColor="#000000"
+        android:gravity="center"
+        android:fontFamily="@font/jeju_gothic"
+        android:layout_marginBottom="12dp" />
+
+    <EditText
+        android:id="@+id/editTextAddress"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@drawable/rounded_bg"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:textSize="14sp"
+        android:textColor="#000000"
+        android:inputType="text"
+        android:singleLine="true" />
+
+</LinearLayout>
