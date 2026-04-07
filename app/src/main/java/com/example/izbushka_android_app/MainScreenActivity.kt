@@ -1,27 +1,32 @@
 package com.example.izbushka_android_app
 
+import android.app.AlertDialog
 import android.app.Dialog
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.media.AudioManager
 import android.os.Bundle
+import android.os.Handler
 import android.view.MotionEvent
 import android.view.View
 import android.view.Window
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.SeekBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import org.json.JSONObject
 
 class MainScreenActivity : AppCompatActivity() {
 
     private lateinit var settingsManager: SettingsManager
+    private lateinit var networkManager: NetworkManager
     private lateinit var joystickOuter: View
     private lateinit var joystickKnob: View
     private var joystickOuterRadius = 0f
@@ -29,11 +34,17 @@ class MainScreenActivity : AppCompatActivity() {
     private var maxDistance = 0f
     private var activePointerId = -1
     private var isDragging = false
+    private var lastCommandTime = 0L
+    private val commandInterval = 50L
+    private lateinit var connectionStatusHandler: Handler
+    private lateinit var connectionCheckRunnable: Runnable
+    private var isConnected = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         settingsManager = SettingsManager(this)
+        networkManager = NetworkManager(this)
 
         if (!settingsManager.isSoundsEnabled()) {
             volumeControlStream = AudioManager.STREAM_MUSIC
@@ -55,6 +66,13 @@ class MainScreenActivity : AppCompatActivity() {
         setupButtonAboveMain()
         setupAutoControlSwitch()
         setupJoystick()
+        startSensorPolling()
+        startConnectionCheck()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        connectionStatusHandler.removeCallbacks(connectionCheckRunnable)
     }
 
     private fun setupButtonLeft() {
@@ -92,7 +110,7 @@ class MainScreenActivity : AppCompatActivity() {
             if (settingsManager.isVibrationEnabled()) {
                 settingsManager.vibrate(50)
             }
-            Toast.makeText(this, "Правила", Toast.LENGTH_SHORT).show()
+            showRulesDialog()
         }
     }
 
@@ -105,7 +123,7 @@ class MainScreenActivity : AppCompatActivity() {
             if (settingsManager.isVibrationEnabled()) {
                 settingsManager.vibrate(50)
             }
-            Toast.makeText(this, "Emoji", Toast.LENGTH_SHORT).show()
+            showEmotionDialog()
         }
     }
 
@@ -204,6 +222,12 @@ class MainScreenActivity : AppCompatActivity() {
     }
 
     private fun sendJoystickData(x: Float, y: Float) {
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastCommandTime < commandInterval) {
+            return
+        }
+        lastCommandTime = currentTime
+
         val sensitivity = settingsManager.getSensitivity() / 50f
         val adjustedX = x * sensitivity
         val adjustedY = y * sensitivity
@@ -212,8 +236,111 @@ class MainScreenActivity : AppCompatActivity() {
         val isAutoControl = autoControlSwitch.isChecked
 
         if (!isAutoControl) {
-            Toast.makeText(this, "X: ${String.format("%.2f", adjustedX)}, Y: ${String.format("%.2f", adjustedY)}", Toast.LENGTH_SHORT).show()
+            networkManager.sendMotorCommand(adjustedX, adjustedY) { success, _ ->
+                if (!success && isConnected) {
+                    isConnected = false
+                    updateConnectionStatus(false)
+                } else if (success && !isConnected) {
+                    isConnected = true
+                    updateConnectionStatus(true)
+                }
+            }
         }
+    }
+
+    private fun startSensorPolling() {
+        val handler = Handler()
+        val runnable = object : Runnable {
+            override fun run() {
+                if (isConnected) {
+                    updateSensorData()
+                }
+                handler.postDelayed(this, 500)
+            }
+        }
+        handler.post(runnable)
+    }
+
+    private fun updateSensorData() {
+        networkManager.getSensorData { data ->
+            if (data != null) {
+                updateUIWithSensorData(data)
+            }
+        }
+    }
+
+    private fun updateUIWithSensorData(data: JSONObject) {
+        try {
+            val temperature = data.optInt("temperature", 0)
+            val temperatureText = findViewById<LinearLayout>(R.id.temperatureRow)?.findViewById<TextView>(1)
+            temperatureText?.text = "Температура: $temperature"
+
+            val battery = data.optInt("battery", 0)
+            val batteryText = findViewById<LinearLayout>(R.id.batteryRow)?.findViewById<TextView>(1)
+            batteryText?.text = "Заряд: $battery%"
+
+            val distance = data.optInt("distance", 0)
+            val distanceText = findViewById<LinearLayout>(R.id.distanceRow)?.findViewById<TextView>(1)
+            distanceText?.text = "Расстояние: ${distance}м"
+        } catch (e: Exception) {
+        }
+    }
+
+    private fun startConnectionCheck() {
+        connectionStatusHandler = Handler()
+        connectionCheckRunnable = object : Runnable {
+            override fun run() {
+                networkManager.pingRobot { success ->
+                    if (success != isConnected) {
+                        isConnected = success
+                        updateConnectionStatus(success)
+                    }
+                }
+                connectionStatusHandler.postDelayed(this, 3000)
+            }
+        }
+        connectionStatusHandler.post(connectionCheckRunnable)
+    }
+
+    private fun updateConnectionStatus(connected: Boolean) {
+        val robotImage = findViewById<ImageView>(R.id.robotImage)
+        if (connected) {
+            robotImage.alpha = 1f
+            Toast.makeText(this, "Соединение восстановлено", Toast.LENGTH_SHORT).show()
+        } else {
+            robotImage.alpha = 0.5f
+            Toast.makeText(this, "Потеря соединения с роботом", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun showEmotionDialog() {
+        val emotions = arrayOf("happy", "sad", "angry", "surprised", "sleepy")
+        val emotionNames = arrayOf("Счастливый", "Грустный", "Злой", "Удивленный", "Сонный")
+
+        AlertDialog.Builder(this)
+            .setTitle("Выберите эмоцию")
+            .setItems(emotionNames) { _, which ->
+                val emotion = emotions[which]
+                networkManager.sendEmotionCommand(emotion) { success, _ ->
+                    if (success) {
+                        Toast.makeText(this, "Эмоция: ${emotionNames[which]}", Toast.LENGTH_SHORT).show()
+                        if (settingsManager.isVibrationEnabled()) {
+                            settingsManager.vibrate(50)
+                        }
+                    } else {
+                        Toast.makeText(this, "Не удалось установить эмоцию", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .show()
+    }
+
+    private fun showRulesDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Правила управления")
+            .setMessage("1. Используйте джойстик для управления движением\n2. Нажмите на кнопку смайлика для смены эмоции\n3. Используйте переключатель для автономного режима\n4. Настройки доступны по кнопке слева")
+            .setPositiveButton("Понятно", null)
+            .show()
     }
 
     private fun showParametersDialog() {
@@ -243,8 +370,8 @@ class MainScreenActivity : AppCompatActivity() {
         switchDarkTheme.isChecked = settingsManager.isDarkThemeEnabled()
         seekBarSensitivity.progress = settingsManager.getSensitivity()
 
-        val savedAddress = settingsManager.getSharedPreferences().getString("server_address", "")
-        editTextAddress.setText(savedAddress)
+        val savedAddress = networkManager.getServerAddress()
+        editTextAddress.setText(savedAddress.replace("http://", ""))
 
         switchSounds.setOnCheckedChangeListener { _, isChecked ->
             settingsManager.setSoundsEnabled(isChecked)
@@ -281,7 +408,6 @@ class MainScreenActivity : AppCompatActivity() {
                     if (settingsManager.isVibrationEnabled()) {
                         settingsManager.vibrate(20)
                     }
-                    Toast.makeText(this@MainScreenActivity, "Чувствительность: $progress", Toast.LENGTH_SHORT).show()
                 }
             }
             override fun onStartTrackingTouch(seekBar: SeekBar?) {}
@@ -289,8 +415,12 @@ class MainScreenActivity : AppCompatActivity() {
         })
 
         dialog.setOnDismissListener {
-            val address = editTextAddress.text.toString()
-            settingsManager.getSharedPreferences().edit().putString("server_address", address).apply()
+            val address = editTextAddress.text.toString().trim()
+            if (address.isNotEmpty()) {
+                networkManager.updateServerAddress(address)
+                isConnected = false
+                startConnectionCheck()
+            }
         }
 
         dialog.show()
