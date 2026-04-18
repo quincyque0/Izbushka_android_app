@@ -39,6 +39,8 @@ class MainScreenActivity : AppCompatActivity() {
     private lateinit var connectionStatusHandler: Handler
     private lateinit var connectionCheckRunnable: Runnable
     private var isConnected = false
+    private lateinit var videoStreamView: VideoStreamView
+    private lateinit var buttonVideo: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,12 +68,14 @@ class MainScreenActivity : AppCompatActivity() {
         setupButtonAboveMain()
         setupAutoControlSwitch()
         setupJoystick()
+        setupButtonVideo()
         startSensorPolling()
         startConnectionCheck()
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        videoStreamView.stopStream()
         connectionStatusHandler.removeCallbacks(connectionCheckRunnable)
     }
 
@@ -424,5 +428,34 @@ class MainScreenActivity : AppCompatActivity() {
         }
 
         dialog.show()
+    }
+
+    private fun setupButtonVideo() {
+        buttonVideo = findViewById(R.id.buttonVideo)
+        videoStreamView = VideoStreamView(this)
+        videoStreamView.setNetworkManager(networkManager)
+
+        val root = findViewById<androidx.constraintlayout.widget.ConstraintLayout>(R.id.root)
+        root.addView(videoStreamView, androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(
+            androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.MATCH_PARENT,
+            androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.MATCH_PARENT
+        ))
+
+        buttonVideo.setOnClickListener {
+            if (settingsManager.isSoundsEnabled()) {
+                settingsManager.playSound()
+            }
+            if (settingsManager.isVibrationEnabled()) {
+                settingsManager.vibrate(50)
+            }
+
+            if (videoStreamView.isStreamingActive()) {
+                videoStreamView.stopStream()
+                buttonVideo.alpha = 1.0f
+            } else {
+                videoStreamView.startStream()
+                buttonVideo.alpha = 0.6f
+            }
+        }
     }
 }

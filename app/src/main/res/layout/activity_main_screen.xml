@@ -7,7 +7,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Левая кнопка прибита к левому краю -->
     <LinearLayout
         android:id="@+id/buttonLeft"
         android:layout_width="50dp"
@@ -27,7 +26,6 @@
             app:tint="#000000" />
     </LinearLayout>
 
-    <!-- Правая кнопка прибита к правому краю -->
     <LinearLayout
         android:id="@+id/buttonRight"
         android:layout_width="50dp"
@@ -47,7 +45,6 @@
             app:tint="#000000" />
     </LinearLayout>
 
-    <!-- Центральная группа: infoPanel + buttonRules, по центру экрана -->
     <LinearLayout
         android:id="@+id/topBar"
         android:layout_width="wrap_content"
@@ -115,6 +112,25 @@
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/emoji"
+            app:tint="#000000" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/buttonVideo"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:background="@drawable/rounded_bg"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="10dp"
+        app:layout_constraintStart_toEndOf="@id/buttonAboveJoystick"
+        app:layout_constraintBottom_toTopOf="@id/joystickOuter">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/video"
             app:tint="#000000" />
     </LinearLayout>
 
