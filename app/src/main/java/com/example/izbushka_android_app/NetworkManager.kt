@@ -1,108 +1,316 @@
 package com.example.izbushka_android_app
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
+import okhttp3.*
 import org.json.JSONObject
-import java.io.InputStream
+import java.io.BufferedInputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.TimeUnit
 
 class NetworkManager(private val context: Context) {
-    private val sharedPreferences = context.getSharedPreferences("robot_settings", Context.MODE_PRIVATE)
-    private var serverAddress: String = "http://192.168.4.1"
-    private val timeout = 3000
+    private val sharedPreferences = context.getSharedPreferences("robot_connection", Context.MODE_PRIVATE)
+    private var serverAddress: String = "http://192.168.1.10:80"
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val authManager = AuthManager(context)
 
-    private var streaming = false
-    private var streamThread: Thread? = null
+    private var webSocket: WebSocket? = null
+    private var isWebSocketConnected = false
+    private var connectionStatusCallback: ((Boolean) -> Unit)? = null
+    private var sensorDataCallback: ((JSONObject) -> Unit)? = null
     private var frameCallback: ((Bitmap?) -> Unit)? = null
+
+    private var isStreaming = false
+    private var streamThread: Thread? = null
+
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .writeTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(0, TimeUnit.SECONDS)
+        .build()
 
     init {
         loadServerAddress()
     }
 
-    fun sendMotorCommand(x: Float, y: Float, callback: (Boolean, String) -> Unit) {
-        val url = "$serverAddress/api/robot/motors/move"
-        val json = JSONObject().apply {
-            put("x", x.toDouble())
-            put("y", y.toDouble())
-        }
-        sendPostRequest(url, json, callback)
+    private fun loadServerAddress() {
+        val ip = sharedPreferences.getString("robot_ip", "192.168.1.10") ?: "192.168.1.10"
+        val port = sharedPreferences.getInt("robot_port", 80)
+        serverAddress = "http://$ip:$port"
     }
 
-    fun sendServoCommand(channel: Int, angle: Int, callback: (Boolean, String) -> Unit) {
-        val url = "$serverAddress/api/robot/servo/$channel"
-        val json = JSONObject().apply {
-            put("angle", angle)
+    fun updateServerAddress(ip: String, port: Int) {
+        serverAddress = "http://$ip:$port"
+        sharedPreferences.edit().apply {
+            putString("robot_ip", ip)
+            putInt("robot_port", port)
+            apply()
         }
-        sendPostRequest(url, json, callback)
     }
 
-    fun sendEmotionCommand(emotion: String, callback: (Boolean, String) -> Unit) {
-        val url = "$serverAddress/api/emotions/current"
+    fun getRobotIp(): String = sharedPreferences.getString("robot_ip", "192.168.1.10") ?: "192.168.1.10"
+    fun getRobotPort(): Int = sharedPreferences.getInt("robot_port", 80)
+
+    fun setConnectionStatusCallback(callback: (Boolean) -> Unit) {
+        connectionStatusCallback = callback
+    }
+
+    fun setSensorDataCallback(callback: (JSONObject) -> Unit) {
+        sensorDataCallback = callback
+    }
+
+    fun connectWebSocket(callback: (Boolean, String) -> Unit) {
+        if (isWebSocketConnected) {
+            callback(true, "Already connected")
+            return
+        }
+
+        val token = authManager.getAccessToken()
+        if (token.isNullOrEmpty()) {
+            callback(false, "No auth token")
+            return
+        }
+
+        val request = Request.Builder()
+            .url("$serverAddress/ws?token=$token")
+            .build()
+
+        webSocket = client.newWebSocket(request, object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                isWebSocketConnected = true
+                mainHandler.post {
+                    connectionStatusCallback?.invoke(true)
+                    callback(true, "Connected")
+                }
+            }
+
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                try {
+                    val response = JSONObject(text)
+                    val event = response.optString("event")
+                    val data = response.optJSONObject("data")
+
+                    when (event) {
+                        "sensor.data" -> {
+                            if (data != null) {
+                                mainHandler.post {
+                                    sensorDataCallback?.invoke(data)
+                                }
+                            }
+                        }
+                        "system.connection_status" -> {
+                            val connected = data?.optBoolean("connected") == true
+                            mainHandler.post {
+                                connectionStatusCallback?.invoke(connected)
+                            }
+                        }
+                        "command.result" -> {
+                            // Результат команды
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Не JSON сообщение
+                }
+            }
+
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                isWebSocketConnected = false
+                mainHandler.post {
+                    connectionStatusCallback?.invoke(false)
+                }
+            }
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                isWebSocketConnected = false
+                mainHandler.post {
+                    connectionStatusCallback?.invoke(false)
+                    callback(false, t.message ?: "Connection failed")
+                }
+            }
+        })
+    }
+
+    fun disconnectWebSocket() {
+        webSocket?.close(1000, "Normal closure")
+        webSocket = null
+        isWebSocketConnected = false
+    }
+
+    fun reconnectWebSocket(callback: (Boolean, String) -> Unit) {
+        disconnectWebSocket()
+        Handler(Looper.getMainLooper()).postDelayed({
+            connectWebSocket(callback)
+        }, 1000)
+    }
+
+    fun login(username: String, password: String, callback: (Boolean, String) -> Unit) {
+        val url = "$serverAddress/api/authorization/login"
         val json = JSONObject().apply {
+            put("nickname", username)
+            put("password", password)
+        }
+
+        Thread {
+            try {
+                val connection = URL(url).openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.doOutput = true
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+
+                connection.outputStream.use { os ->
+                    os.write(json.toString().toByteArray())
+                }
+
+                val responseCode = connection.responseCode
+                var token: String? = null
+                val cookieHeader = connection.getHeaderField("Set-Cookie")
+                if (cookieHeader != null) {
+                    val regex = "token=([^;]+)".toRegex()
+                    val match = regex.find(cookieHeader)
+                    token = match?.groupValues?.get(1)
+                }
+
+                connection.disconnect()
+
+                if (responseCode == HttpURLConnection.HTTP_OK && token != null) {
+                    authManager.saveTokens(token, "", "", username)
+                    mainHandler.post {
+                        callback(true, "Успешный вход")
+                    }
+                } else {
+                    mainHandler.post {
+                        callback(false, "Ошибка авторизации")
+                    }
+                }
+            } catch (e: Exception) {
+                mainHandler.post {
+                    callback(false, e.message ?: "Ошибка соединения")
+                }
+            }
+        }.start()
+    }
+
+    fun sendMotorCommand(action: String, speed: Int) {
+        if (!isWebSocketConnected) return
+
+        val data = JSONObject().apply {
+            put("action", action)
+            put("speed", speed)
+            put("wait_response", false)
+        }
+
+        val json = JSONObject().apply {
+            put("event", "robot.motors")
+            put("data", data)
+        }
+
+        webSocket?.send(json.toString())
+    }
+
+    fun sendEmotionCommand(emotion: String, callback: ((Boolean) -> Unit)? = null) {
+        if (!isWebSocketConnected) {
+            callback?.invoke(false)
+            return
+        }
+
+        val data = JSONObject().apply {
             put("emotion", emotion)
         }
-        sendPutRequest(url, json, callback)
+
+        val json = JSONObject().apply {
+            put("event", "emotion.set")
+            put("data", data)
+        }
+
+        webSocket?.send(json.toString())
+        callback?.invoke(true)
     }
 
-    fun getSensorData(callback: (JSONObject?) -> Unit) {
-        val url = "$serverAddress/api/robot/sensors/distance"
-        sendGetRequest(url) { success, data ->
-            if (success && data != null) {
-                callback(data)
-            } else {
-                callback(null)
-            }
-        }
-    }
+    fun getSensorData() {
+        if (!isWebSocketConnected) return
 
-    fun pingRobot(callback: (Boolean) -> Unit) {
-        val url = "$serverAddress/api/robot/ping"
-        sendPostRequest(url, JSONObject()) { success, _ ->
-            callback(success)
+        val json = JSONObject().apply {
+            put("event", "sensor.get_data")
         }
+        webSocket?.send(json.toString())
     }
 
     fun startVideoStream(callback: (Bitmap?) -> Unit) {
-        if (streaming) {
+        if (isStreaming) {
             stopVideoStream()
         }
 
         frameCallback = callback
-        streaming = true
+        isStreaming = true
+        val token = authManager.getAccessToken() ?: return
 
         streamThread = Thread {
-            val url = "$serverAddress/api/webcam/stream"
+            val url = "$serverAddress/api/webcam/stream?token=$token"
 
-            while (streaming) {
+            while (isStreaming) {
+                var connection: HttpURLConnection? = null
                 try {
-                    val connection = URL(url).openConnection() as HttpURLConnection
+                    connection = URL(url).openConnection() as HttpURLConnection
                     connection.requestMethod = "GET"
-                    connection.setRequestProperty("Accept", "image/jpeg")
                     connection.connectTimeout = 5000
                     connection.readTimeout = 5000
 
                     val responseCode = connection.responseCode
                     if (responseCode == HttpURLConnection.HTTP_OK) {
                         val inputStream = connection.inputStream
-                        val boundary = "--boundary"
+                        val bis = BufferedInputStream(inputStream)
 
-                        readMultipartStream(inputStream, boundary) { imageData ->
-                            if (imageData != null && streaming) {
-                                val bitmap = BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
-                                mainHandler.post {
-                                    frameCallback?.invoke(bitmap)
+                        while (isStreaming) {
+                            var foundStart = false
+                            while (!foundStart && isStreaming) {
+                                val b = bis.read()
+                                if (b == -1) break
+                                if (b == 0xFF) {
+                                    val b2 = bis.read()
+                                    if (b2 == 0xD8) {
+                                        foundStart = true
+                                        val imageBuffer = java.io.ByteArrayOutputStream()
+                                        imageBuffer.write(0xFF)
+                                        imageBuffer.write(0xD8)
+
+                                        var prev = 0xFF
+                                        while (isStreaming) {
+                                            val current = bis.read()
+                                            if (current == -1) break
+                                            imageBuffer.write(current)
+                                            if (prev == 0xFF && current == 0xD9) {
+                                                break
+                                            }
+                                            prev = current
+                                        }
+
+                                        val imageData = imageBuffer.toByteArray()
+                                        val bitmap = BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
+                                        if (bitmap != null) {
+                                            mainHandler.post {
+                                                frameCallback?.invoke(bitmap)
+                                            }
+                                        }
+                                    }
                                 }
                             }
+                            if (!foundStart) break
                         }
+                        inputStream.close()
                     }
-                    connection.disconnect()
                 } catch (e: Exception) {
-                    Thread.sleep(1000)
+                    if (isStreaming) {
+                        Thread.sleep(1000)
+                    }
+                } finally {
+                    connection?.disconnect()
                 }
             }
         }
@@ -110,186 +318,17 @@ class NetworkManager(private val context: Context) {
     }
 
     fun stopVideoStream() {
-        streaming = false
+        isStreaming = false
         streamThread?.interrupt()
         streamThread = null
         frameCallback = null
     }
 
-    fun isVideoStreamAvailable(callback: (Boolean) -> Unit) {
-        val url = "$serverAddress/api/webcam/stream"
-        Thread {
-            try {
-                val connection = URL(url).openConnection() as HttpURLConnection
-                connection.requestMethod = "HEAD"
-                connection.connectTimeout = timeout
-                val responseCode = connection.responseCode
-                mainHandler.post {
-                    callback(responseCode == HttpURLConnection.HTTP_OK)
-                }
-                connection.disconnect()
-            } catch (e: Exception) {
-                mainHandler.post {
-                    callback(false)
-                }
-            }
-        }.start()
-    }
+    fun isLoggedIn(): Boolean = authManager.isLoggedIn()
+    fun isWebSocketConnected(): Boolean = isWebSocketConnected
 
-    fun setVideoQuality(quality: Int, callback: (Boolean) -> Unit) {
-        val url = "$serverAddress/api/webcam/quality"
-        val json = JSONObject().apply {
-            put("quality", quality.coerceIn(0, 100))
-        }
-        sendPutRequest(url, json) { success, _ ->
-            callback(success)
-        }
-    }
-
-    private fun readMultipartStream(inputStream: InputStream, boundary: String, onImageData: (ByteArray?) -> Unit) {
-        val buffer = ByteArray(4096)
-        var inImageData = false
-        val imageDataBuffer = java.io.ByteArrayOutputStream()
-
-        try {
-            val bis = java.io.BufferedInputStream(inputStream)
-            var lastBytes = byteArrayOf()
-
-            while (streaming) {
-                val read = bis.read(buffer)
-                if (read == -1) break
-
-                val data = buffer.copyOf(read)
-
-                for (i in data.indices) {
-                    if (!inImageData) {
-                        if (i + 1 < data.size &&
-                            data[i].toInt() == 0xFF &&
-                            data[i + 1].toInt() == 0xD8) {
-                            inImageData = true
-                            imageDataBuffer.reset()
-                            imageDataBuffer.write(data, i, data.size - i)
-                        }
-                    } else {
-                        imageDataBuffer.write(data[i].toInt())
-                        if (i >= 1 &&
-                            data[i - 1].toInt() == 0xFF &&
-                            data[i].toInt() == 0xD9) {
-                            onImageData(imageDataBuffer.toByteArray())
-                            inImageData = false
-                            imageDataBuffer.reset()
-                        }
-                    }
-                }
-            }
-        } catch (e: Exception) {
-        } finally {
-            try {
-                inputStream.close()
-            } catch (e: Exception) { }
-        }
-    }
-
-    private fun sendPostRequest(url: String, json: JSONObject, callback: (Boolean, String) -> Unit) {
-        Thread {
-            try {
-                val connection = URL(url).openConnection() as HttpURLConnection
-                connection.requestMethod = "POST"
-                connection.setRequestProperty("Content-Type", "application/json")
-                connection.doOutput = true
-                connection.connectTimeout = timeout
-                connection.readTimeout = timeout
-
-                connection.outputStream.use { os ->
-                    val input = json.toString().toByteArray()
-                    os.write(input, 0, input.size)
-                }
-
-                val responseCode = connection.responseCode
-                val response = if (responseCode == HttpURLConnection.HTTP_OK) {
-                    connection.inputStream.bufferedReader().readText()
-                } else {
-                    connection.errorStream?.bufferedReader()?.readText() ?: ""
-                }
-
-                mainHandler.post {
-                    callback(responseCode == HttpURLConnection.HTTP_OK, response)
-                }
-                connection.disconnect()
-            } catch (e: Exception) {
-                mainHandler.post {
-                    callback(false, e.message ?: "Ошибка соединения")
-                }
-            }
-        }.start()
-    }
-
-    private fun sendPutRequest(url: String, json: JSONObject, callback: (Boolean, String) -> Unit) {
-        Thread {
-            try {
-                val connection = URL(url).openConnection() as HttpURLConnection
-                connection.requestMethod = "PUT"
-                connection.setRequestProperty("Content-Type", "application/json")
-                connection.doOutput = true
-                connection.connectTimeout = timeout
-                connection.readTimeout = timeout
-
-                connection.outputStream.use { os ->
-                    val input = json.toString().toByteArray()
-                    os.write(input, 0, input.size)
-                }
-
-                val responseCode = connection.responseCode
-                mainHandler.post {
-                    callback(responseCode == HttpURLConnection.HTTP_OK, if (responseCode == HttpURLConnection.HTTP_OK) "OK" else "Ошибка: $responseCode")
-                }
-                connection.disconnect()
-            } catch (e: Exception) {
-                mainHandler.post {
-                    callback(false, e.message ?: "Ошибка соединения")
-                }
-            }
-        }.start()
-    }
-
-    private fun sendGetRequest(url: String, callback: (Boolean, JSONObject?) -> Unit) {
-        Thread {
-            try {
-                val connection = URL(url).openConnection() as HttpURLConnection
-                connection.requestMethod = "GET"
-                connection.connectTimeout = timeout
-                connection.readTimeout = timeout
-
-                val responseCode = connection.responseCode
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    val response = connection.inputStream.bufferedReader().readText()
-                    mainHandler.post {
-                        callback(true, JSONObject(response))
-                    }
-                } else {
-                    mainHandler.post {
-                        callback(false, null)
-                    }
-                }
-                connection.disconnect()
-            } catch (e: Exception) {
-                mainHandler.post {
-                    callback(false, null)
-                }
-            }
-        }.start()
-    }
-
-    private fun loadServerAddress() {
-        serverAddress = sharedPreferences.getString("server_address", "http://192.168.4.1") ?: "http://192.168.4.1"
-    }
-
-    fun updateServerAddress(address: String) {
-        serverAddress = if (address.startsWith("http")) address else "http://$address"
-        sharedPreferences.edit().putString("server_address", serverAddress).apply()
-    }
-
-    fun getServerAddress(): String {
-        return serverAddress
+    fun logout() {
+        authManager.clearTokens()
+        disconnectWebSocket()
     }
 }

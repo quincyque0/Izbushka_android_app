@@ -18,17 +18,14 @@ class VideoStreamView @JvmOverloads constructor(
     private var imageView: ImageView
     private var progressBar: ProgressBar
     private var errorText: TextView
-
     private var networkManager: NetworkManager? = null
     private var isStreaming = false
 
     init {
         inflate(context, R.layout.view_video_stream, this)
-
         imageView = findViewById(R.id.videoImageView)
         progressBar = findViewById(R.id.videoProgressBar)
         errorText = findViewById(R.id.videoErrorText)
-
         visibility = View.GONE
     }
 
@@ -38,7 +35,6 @@ class VideoStreamView @JvmOverloads constructor(
 
     fun startStream() {
         if (networkManager == null) return
-
         visibility = View.VISIBLE
         isStreaming = true
         progressBar.visibility = View.VISIBLE
@@ -51,13 +47,6 @@ class VideoStreamView @JvmOverloads constructor(
                 errorText.visibility = View.GONE
             }
         }
-
-        imageView.postDelayed({
-            if (isStreaming && imageView.drawable == null) {
-                errorText.visibility = View.VISIBLE
-                progressBar.visibility = View.GONE
-            }
-        }, 2000)
     }
 
     fun stopStream() {

@@ -6,7 +6,6 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Верхняя панель: инфо + rules, всё по центру как группа -->
     <LinearLayout
         android:id="@+id/topBar"
         android:layout_width="wrap_content"
@@ -57,6 +56,91 @@
 
     </LinearLayout>
 
+    <ImageView
+        android:id="@+id/imageView2"
+        android:layout_width="245dp"
+        android:layout_height="257dp"
+        app:srcCompat="@drawable/zbushkamg"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/topBar"
+        app:layout_constraintBottom_toTopOf="@id/settingsPanel" />
+
+    <LinearLayout
+        android:id="@+id/settingsPanel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:layout_marginStart="20dp"
+        android:layout_marginEnd="20dp"
+        android:background="@drawable/rounded_bg"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/Main"
+        android:layout_marginBottom="10dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Настройки подключения"
+            android:textSize="14sp"
+            android:textColor="#000000"
+            android:fontFamily="@font/jeju_gothic"
+            android:layout_marginBottom="12dp"
+            android:layout_gravity="center" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="IP адрес робота"
+            app:boxBackgroundMode="outline"
+            app:boxStrokeColor="#000000"
+            app:hintTextColor="#000000"
+            android:layout_marginBottom="8dp">
+
+            <EditText
+                android:id="@+id/editTextIp"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:inputType="phone"
+                android:text="192.168.4.1"
+                android:textColor="#000000"
+                android:textSize="14sp" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Порт"
+            app:boxBackgroundMode="outline"
+            app:boxStrokeColor="#000000"
+            app:hintTextColor="#000000"
+            android:layout_marginBottom="12dp">
+
+            <EditText
+                android:id="@+id/editTextPort"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:inputType="number"
+                android:text="80"
+                android:textColor="#000000"
+                android:textSize="14sp" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <Button
+            android:id="@+id/btnSaveSettings"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:text="Сохранить настройки"
+            android:textSize="12sp"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#000000"
+            android:fontFamily="@font/jeju_gothic" />
+
+    </LinearLayout>
+
     <View
         android:id="@+id/Main"
         android:layout_width="0dp"
@@ -68,16 +152,6 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />
-
-    <ImageView
-        android:id="@+id/imageView2"
-        android:layout_width="245dp"
-        android:layout_height="257dp"
-        app:srcCompat="@drawable/zbushkamg"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/topBar"
-        app:layout_constraintBottom_toTopOf="@id/Main" />
 
     <LinearLayout
         android:id="@+id/ReloadButton"
@@ -132,5 +206,21 @@
         app:layout_constraintStart_toStartOf="@id/Main"
         app:layout_constraintEnd_toEndOf="@id/Main"
         app:layout_constraintBottom_toTopOf="@id/WaitTimer" />
+
+    <Button
+        android:id="@+id/btnToggleSettings"
+        android:layout_width="wrap_content"
+        android:layout_height="30dp"
+        android:text="Настройки"
+        android:textSize="10sp"
+        android:textColor="#FFFFFF"
+        android:backgroundTint="#000000"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:fontFamily="@font/jeju_gothic"
+        app:layout_constraintEnd_toEndOf="@id/Main"
+        app:layout_constraintTop_toTopOf="@id/Main"
+        android:layout_marginEnd="10dp"
+        android:layout_marginTop="10dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
