@@ -56,8 +56,7 @@ class SettingsManager(context: Context) {
         if (isSoundsEnabled()) {
             try {
                 audioManager.playSoundEffect(AudioManager.FX_KEY_CLICK)
-            } catch (e: Exception) {
-            }
+            } catch (e: Exception) { }
         }
     }
 
@@ -69,8 +68,7 @@ class SettingsManager(context: Context) {
                 } else {
                     vibrator?.vibrate(duration)
                 }
-            } catch (e: Exception) {
-            }
+            } catch (e: Exception) { }
         }
     }
 }

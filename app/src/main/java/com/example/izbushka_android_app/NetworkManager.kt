@@ -1,7 +1,6 @@
 package com.example.izbushka_android_app
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Handler
@@ -23,7 +22,6 @@ class NetworkManager(private val context: Context) {
     private var isWebSocketConnected = false
     private var connectionStatusCallback: ((Boolean) -> Unit)? = null
     private var sensorDataCallback: ((JSONObject) -> Unit)? = null
-    private var frameCallback: ((Bitmap?) -> Unit)? = null
 
     private var isStreaming = false
     private var streamThread: Thread? = null
@@ -31,7 +29,7 @@ class NetworkManager(private val context: Context) {
     private val client = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .writeTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
     init {
@@ -64,90 +62,6 @@ class NetworkManager(private val context: Context) {
         sensorDataCallback = callback
     }
 
-    fun connectWebSocket(callback: (Boolean, String) -> Unit) {
-        if (isWebSocketConnected) {
-            callback(true, "Already connected")
-            return
-        }
-
-        val token = authManager.getAccessToken()
-        if (token.isNullOrEmpty()) {
-            callback(false, "No auth token")
-            return
-        }
-
-        val request = Request.Builder()
-            .url("$serverAddress/ws?token=$token")
-            .build()
-
-        webSocket = client.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: Response) {
-                isWebSocketConnected = true
-                mainHandler.post {
-                    connectionStatusCallback?.invoke(true)
-                    callback(true, "Connected")
-                }
-            }
-
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                try {
-                    val response = JSONObject(text)
-                    val event = response.optString("event")
-                    val data = response.optJSONObject("data")
-
-                    when (event) {
-                        "sensor.data" -> {
-                            if (data != null) {
-                                mainHandler.post {
-                                    sensorDataCallback?.invoke(data)
-                                }
-                            }
-                        }
-                        "system.connection_status" -> {
-                            val connected = data?.optBoolean("connected") == true
-                            mainHandler.post {
-                                connectionStatusCallback?.invoke(connected)
-                            }
-                        }
-                        "command.result" -> {
-                            // Результат команды
-                        }
-                    }
-                } catch (e: Exception) {
-                    // Не JSON сообщение
-                }
-            }
-
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                isWebSocketConnected = false
-                mainHandler.post {
-                    connectionStatusCallback?.invoke(false)
-                }
-            }
-
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                isWebSocketConnected = false
-                mainHandler.post {
-                    connectionStatusCallback?.invoke(false)
-                    callback(false, t.message ?: "Connection failed")
-                }
-            }
-        })
-    }
-
-    fun disconnectWebSocket() {
-        webSocket?.close(1000, "Normal closure")
-        webSocket = null
-        isWebSocketConnected = false
-    }
-
-    fun reconnectWebSocket(callback: (Boolean, String) -> Unit) {
-        disconnectWebSocket()
-        Handler(Looper.getMainLooper()).postDelayed({
-            connectWebSocket(callback)
-        }, 1000)
-    }
-
     fun login(username: String, password: String, callback: (Boolean, String) -> Unit) {
         val url = "$serverAddress/api/authorization/login"
         val json = JSONObject().apply {
@@ -169,12 +83,25 @@ class NetworkManager(private val context: Context) {
                 }
 
                 val responseCode = connection.responseCode
+                val responseText = if (responseCode == HttpURLConnection.HTTP_OK) {
+                    connection.inputStream.bufferedReader().use { it.readText() }
+                } else {
+                    connection.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+                }
+
                 var token: String? = null
                 val cookieHeader = connection.getHeaderField("Set-Cookie")
                 if (cookieHeader != null) {
                     val regex = "token=([^;]+)".toRegex()
                     val match = regex.find(cookieHeader)
                     token = match?.groupValues?.get(1)
+                }
+
+                if (token == null && responseText.isNotEmpty()) {
+                    try {
+                        val jsonResponse = JSONObject(responseText)
+                        token = jsonResponse.optString("token", null)
+                    } catch (e: Exception) { }
                 }
 
                 connection.disconnect()
@@ -198,48 +125,166 @@ class NetworkManager(private val context: Context) {
     }
 
     fun sendMotorCommand(action: String, speed: Int) {
-        if (!isWebSocketConnected) return
-
-        val data = JSONObject().apply {
-            put("action", action)
-            put("speed", speed)
-            put("wait_response", false)
-        }
-
+        val direction = actionToDirection(action)
+        val url = "$serverAddress/api/robot/motors/move"
         val json = JSONObject().apply {
-            put("event", "robot.motors")
-            put("data", data)
+            put("direction", direction)
+            put("speed", speed.coerceIn(0, 255))
         }
-
-        webSocket?.send(json.toString())
+        sendPostRequest(url, json.toString())
     }
 
-    fun sendEmotionCommand(emotion: String, callback: ((Boolean) -> Unit)? = null) {
-        if (!isWebSocketConnected) {
-            callback?.invoke(false)
-            return
+    private fun actionToDirection(action: String): String {
+        return when (action) {
+            "move_forward" -> "forward"
+            "move_backward" -> "backward"
+            "turn_left" -> "left"
+            "turn_right" -> "right"
+            else -> "stop"
         }
+    }
 
-        val data = JSONObject().apply {
-            put("emotion", emotion)
-        }
-
+    fun stopMotors() {
+        val url = "$serverAddress/api/robot/motors/stop"
         val json = JSONObject().apply {
-            put("event", "emotion.set")
-            put("data", data)
+            put("mode", "stop")
         }
+        sendPostRequest(url, json.toString())
+    }
 
-        webSocket?.send(json.toString())
-        callback?.invoke(true)
+    fun setMotorSpeed(speedLeft: Int, speedRight: Int) {
+        val url = "$serverAddress/api/robot/motors/speed"
+        val json = JSONObject().apply {
+            put("motor_mask", 3)
+            put("speed_left", speedLeft.coerceIn(0, 255))
+            put("speed_right", speedRight.coerceIn(0, 255))
+        }
+        sendPostRequest(url, json.toString())
+    }
+
+    fun setMotorDirection(directionLeft: Int, directionRight: Int) {
+        val url = "$serverAddress/api/robot/motors/direction"
+        val json = JSONObject().apply {
+            put("motor_mask", 3)
+            put("direction_left", directionLeft)
+            put("direction_right", directionRight)
+        }
+        sendPostRequest(url, json.toString())
+    }
+
+    fun setServoAngle(channel: Int, angle: Int) {
+        val url = "$serverAddress/api/robot/servo/$channel"
+        val json = JSONObject().apply {
+            put("angle", angle.coerceIn(0, 180))
+        }
+        sendPostRequest(url, json.toString())
+    }
+
+    fun getDistance(callback: (Float?) -> Unit) {
+        val url = "$serverAddress/api/robot/sensors/distance"
+        sendGetRequest(url) { response ->
+            try {
+                val json = JSONObject(response)
+                callback(json.optDouble("distance_cm", -1.0).toFloat())
+            } catch (e: Exception) {
+                callback(null)
+            }
+        }
+    }
+
+    fun getGyroData(callback: (JSONObject?) -> Unit) {
+        val url = "$serverAddress/api/robot/sensors/gyro"
+        sendGetRequest(url) { response ->
+            try {
+                val json = JSONObject(response)
+                callback(json)
+            } catch (e: Exception) {
+                callback(null)
+            }
+        }
+    }
+
+    fun getMillis(callback: (Long?) -> Unit) {
+        val url = "$serverAddress/api/robot/sensors/millis"
+        sendGetRequest(url) { response ->
+            try {
+                val json = JSONObject(response)
+                callback(json.optLong("millis", -1))
+            } catch (e: Exception) {
+                callback(null)
+            }
+        }
+    }
+
+    fun getAllSensorsData(callback: (JSONObject?) -> Unit) {
+        Thread {
+            val result = JSONObject()
+
+            try {
+                val url = URL("$serverAddress/api/robot/sensors/distance")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "GET"
+                conn.addRequestProperty("Authorization", "Bearer ${authManager.getAccessToken()}")
+                conn.connectTimeout = 2000
+
+                if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+                    val response = conn.inputStream.bufferedReader().use { it.readText() }
+                    val json = JSONObject(response)
+                    result.put("distance", json)
+                }
+                conn.disconnect()
+            } catch (e: Exception) { }
+
+            try {
+                val url = URL("$serverAddress/api/robot/sensors/gyro")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "GET"
+                conn.addRequestProperty("Authorization", "Bearer ${authManager.getAccessToken()}")
+                conn.connectTimeout = 2000
+
+                if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+                    val response = conn.inputStream.bufferedReader().use { it.readText() }
+                    val json = JSONObject(response)
+                    result.put("gyro", json)
+                }
+                conn.disconnect()
+            } catch (e: Exception) { }
+
+            try {
+                val url = URL("$serverAddress/api/robot/sensors/millis")
+                val conn = url.openConnection() as HttpURLConnection
+                conn.requestMethod = "GET"
+                conn.addRequestProperty("Authorization", "Bearer ${authManager.getAccessToken()}")
+                conn.connectTimeout = 2000
+
+                if (conn.responseCode == HttpURLConnection.HTTP_OK) {
+                    val response = conn.inputStream.bufferedReader().use { it.readText() }
+                    val json = JSONObject(response)
+                    result.put("millis", json)
+                }
+                conn.disconnect()
+            } catch (e: Exception) { }
+
+            mainHandler.post {
+                callback(if (result.length() > 0) result else null)
+            }
+        }.start()
     }
 
     fun getSensorData() {
-        if (!isWebSocketConnected) return
-
-        val json = JSONObject().apply {
-            put("event", "sensor.get_data")
+        getAllSensorsData { data ->
+            if (data != null) {
+                sensorDataCallback?.invoke(data)
+            }
         }
-        webSocket?.send(json.toString())
+    }
+
+    fun pingRobot(callback: (Boolean) -> Unit) {
+        val url = "$serverAddress/api/robot/ping"
+        val json = JSONObject()
+        sendPostRequest(url, json.toString()) { success, _ ->
+            callback(success)
+        }
     }
 
     fun startVideoStream(callback: (Bitmap?) -> Unit) {
@@ -247,7 +292,6 @@ class NetworkManager(private val context: Context) {
             stopVideoStream()
         }
 
-        frameCallback = callback
         isStreaming = true
         val token = authManager.getAccessToken() ?: return
 
@@ -295,7 +339,7 @@ class NetworkManager(private val context: Context) {
                                         val bitmap = BitmapFactory.decodeByteArray(imageData, 0, imageData.size)
                                         if (bitmap != null) {
                                             mainHandler.post {
-                                                frameCallback?.invoke(bitmap)
+                                                callback(bitmap)
                                             }
                                         }
                                     }
@@ -321,11 +365,227 @@ class NetworkManager(private val context: Context) {
         isStreaming = false
         streamThread?.interrupt()
         streamThread = null
-        frameCallback = null
+    }
+
+    fun sendEmotionCommand(emotion: String, callback: ((Boolean) -> Unit)? = null) {
+        val url = "$serverAddress/api/emotions/current"
+        val json = JSONObject().apply {
+            put("emotion", emotion)
+        }
+        sendPutRequest(url, json.toString()) { success, _ ->
+            callback?.invoke(success)
+        }
+    }
+
+    fun getCurrentEmotion(callback: (String?) -> Unit) {
+        val url = "$serverAddress/api/emotions/current"
+        sendGetRequest(url) { response ->
+            try {
+                val json = JSONObject(response)
+                callback(json.optString("emotion", null))
+            } catch (e: Exception) {
+                callback(null)
+            }
+        }
+    }
+
+    fun getAvailableEmotions(callback: (List<String>) -> Unit) {
+        val url = "$serverAddress/api/emotions"
+        sendGetRequest(url) { response ->
+            try {
+                val json = JSONObject(response)
+                val emotionsArray = json.optJSONArray("emotions")
+                val emotions = mutableListOf<String>()
+                if (emotionsArray != null) {
+                    for (i in 0 until emotionsArray.length()) {
+                        emotions.add(emotionsArray.getString(i))
+                    }
+                }
+                callback(emotions)
+            } catch (e: Exception) {
+                callback(emptyList())
+            }
+        }
+    }
+
+    fun connectWebSocket(callback: (Boolean, String) -> Unit) {
+        if (isWebSocketConnected) {
+            callback(true, "Already connected")
+            return
+        }
+
+        val token = authManager.getAccessToken()
+        if (token.isNullOrEmpty()) {
+            callback(false, "No auth token")
+            return
+        }
+
+        val request = Request.Builder()
+            .url("$serverAddress/ws?token=$token")
+            .build()
+
+        webSocket = client.newWebSocket(request, object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                isWebSocketConnected = true
+                mainHandler.post {
+                    connectionStatusCallback?.invoke(true)
+                    callback(true, "Connected")
+                }
+            }
+
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                try {
+                    val response = JSONObject(text)
+                    val event = response.optString("event")
+                    val data = response.optJSONObject("data")
+
+                    when (event) {
+                        "sensor.data" -> {
+                            if (data != null) {
+                                mainHandler.post {
+                                    sensorDataCallback?.invoke(data)
+                                }
+                            }
+                        }
+                        "system.connection_status" -> {
+                            val connected = data?.optBoolean("connected") == true
+                            mainHandler.post {
+                                connectionStatusCallback?.invoke(connected)
+                            }
+                        }
+                    }
+                } catch (e: Exception) { }
+            }
+
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                isWebSocketConnected = false
+                mainHandler.post {
+                    connectionStatusCallback?.invoke(false)
+                }
+            }
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                isWebSocketConnected = false
+                mainHandler.post {
+                    connectionStatusCallback?.invoke(false)
+                    callback(false, t.message ?: "Connection failed")
+                }
+            }
+        })
+    }
+
+    fun disconnectWebSocket() {
+        webSocket?.close(1000, "Normal closure")
+        webSocket = null
+        isWebSocketConnected = false
+    }
+
+    fun reconnectWebSocket(callback: (Boolean, String) -> Unit) {
+        disconnectWebSocket()
+        Handler(Looper.getMainLooper()).postDelayed({
+            connectWebSocket(callback)
+        }, 1000)
+    }
+
+    fun isWebSocketConnected(): Boolean = isWebSocketConnected
+
+    private fun sendPostRequest(url: String, jsonBody: String, callback: ((Boolean, String) -> Unit)? = null) {
+        Thread {
+            var connection: HttpURLConnection? = null
+            try {
+                val httpUrl = URL(url)
+                connection = httpUrl.openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.setRequestProperty("Authorization", "Bearer ${authManager.getAccessToken()}")
+                connection.doOutput = true
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+
+                connection.outputStream.use { os ->
+                    os.write(jsonBody.toByteArray())
+                }
+
+                val responseCode = connection.responseCode
+                val success = responseCode in 200..299
+                mainHandler.post {
+                    callback?.invoke(success, if (success) "OK" else "Error $responseCode")
+                }
+            } catch (e: Exception) {
+                mainHandler.post {
+                    callback?.invoke(false, e.message ?: "Unknown error")
+                }
+            } finally {
+                connection?.disconnect()
+            }
+        }.start()
+    }
+
+    private fun sendPutRequest(url: String, jsonBody: String, callback: ((Boolean, String) -> Unit)? = null) {
+        Thread {
+            var connection: HttpURLConnection? = null
+            try {
+                val httpUrl = URL(url)
+                connection = httpUrl.openConnection() as HttpURLConnection
+                connection.requestMethod = "PUT"
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.setRequestProperty("Authorization", "Bearer ${authManager.getAccessToken()}")
+                connection.doOutput = true
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+
+                connection.outputStream.use { os ->
+                    os.write(jsonBody.toByteArray())
+                }
+
+                val responseCode = connection.responseCode
+                val success = responseCode in 200..299
+                mainHandler.post {
+                    callback?.invoke(success, if (success) "OK" else "Error $responseCode")
+                }
+            } catch (e: Exception) {
+                mainHandler.post {
+                    callback?.invoke(false, e.message ?: "Unknown error")
+                }
+            } finally {
+                connection?.disconnect()
+            }
+        }.start()
+    }
+
+    private fun sendGetRequest(url: String, callback: (String) -> Unit) {
+        Thread {
+            var connection: HttpURLConnection? = null
+            try {
+                val httpUrl = URL(url)
+                connection = httpUrl.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.setRequestProperty("Authorization", "Bearer ${authManager.getAccessToken()}")
+                connection.connectTimeout = 5000
+                connection.readTimeout = 5000
+
+                val responseCode = connection.responseCode
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    mainHandler.post {
+                        callback(response)
+                    }
+                } else {
+                    mainHandler.post {
+                        callback("")
+                    }
+                }
+            } catch (e: Exception) {
+                mainHandler.post {
+                    callback("")
+                }
+            } finally {
+                connection?.disconnect()
+            }
+        }.start()
     }
 
     fun isLoggedIn(): Boolean = authManager.isLoggedIn()
-    fun isWebSocketConnected(): Boolean = isWebSocketConnected
 
     fun logout() {
         authManager.clearTokens()

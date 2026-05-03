@@ -7,6 +7,15 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <FrameLayout
+        android:id="@+id/videoContainer"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
     <LinearLayout
         android:id="@+id/buttonLeft"
         android:layout_width="50dp"
@@ -15,9 +24,9 @@
         android:orientation="horizontal"
         android:gravity="center"
         android:layout_marginStart="30dp"
+        android:layout_marginTop="30dp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@id/topBar"
-        app:layout_constraintBottom_toBottomOf="@id/topBar">
+        app:layout_constraintTop_toTopOf="parent">
 
         <ImageView
             android:layout_width="24dp"
@@ -34,9 +43,9 @@
         android:orientation="horizontal"
         android:gravity="center"
         android:layout_marginEnd="30dp"
+        android:layout_marginTop="30dp"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@id/topBar"
-        app:layout_constraintBottom_toBottomOf="@id/topBar">
+        app:layout_constraintTop_toTopOf="parent">
 
         <ImageView
             android:layout_width="24dp"
@@ -93,7 +102,6 @@
                 android:src="@drawable/security"
                 app:tint="#000000" />
         </LinearLayout>
-
     </LinearLayout>
 
     <LinearLayout
@@ -141,6 +149,7 @@
         android:background="@drawable/joystick_outer_bg"
         android:layout_marginStart="26dp"
         android:layout_marginBottom="30dp"
+        android:alpha="0.85"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintBottom_toBottomOf="parent" />
 
@@ -149,20 +158,11 @@
         android:layout_width="65dp"
         android:layout_height="65dp"
         android:background="@drawable/joystick_knob_bg"
+        android:alpha="0.85"
         app:layout_constraintTop_toTopOf="@id/joystickOuter"
         app:layout_constraintBottom_toBottomOf="@id/joystickOuter"
         app:layout_constraintStart_toStartOf="@id/joystickOuter"
         app:layout_constraintEnd_toEndOf="@id/joystickOuter" />
-
-    <View
-        android:id="@+id/mainPanel"
-        android:layout_width="150dp"
-        android:layout_height="150dp"
-        android:layout_marginEnd="30dp"
-        android:layout_marginBottom="30dp"
-        android:background="@drawable/rounded_bg"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent" />
 
     <LinearLayout
         android:id="@+id/buttonAboveMain"
@@ -183,131 +183,131 @@
             app:tint="#000000" />
     </LinearLayout>
 
-    <ImageView
-        android:id="@+id/robotImage"
-        android:layout_width="307dp"
-        android:layout_height="322dp"
-        app:srcCompat="@drawable/zbushkaactive"
-        app:layout_constraintStart_toStartOf="parent"
+    <LinearLayout
+        android:id="@+id/mainPanel"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:layout_marginEnd="30dp"
+        android:layout_marginBottom="30dp"
+        android:background="@drawable/rounded_bg"
+        android:alpha="0.9"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/topBar"
-        app:layout_constraintBottom_toTopOf="@id/joystickOuter" />
+        app:layout_constraintBottom_toBottomOf="parent">
 
-    <LinearLayout
-        android:id="@+id/temperatureRow"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="12dp"
-        app:layout_constraintStart_toStartOf="@id/mainPanel"
-        app:layout_constraintTop_toTopOf="@id/mainPanel">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="8dp">
 
-        <ImageView
-            android:layout_width="25dp"
-            android:layout_height="25dp"
-            android:src="@drawable/temperature"
-            app:tint="#000000"
-            android:layout_marginEnd="8dp" />
+            <LinearLayout
+                android:id="@+id/temperatureRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Температура: 60"
-            android:textSize="10sp"
-            android:textColor="#000000"
-            android:singleLine="true"
-            android:fontFamily="@font/jeju_gothic" />
-    </LinearLayout>
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/temperature"
+                    app:tint="#000000"
+                    android:layout_marginEnd="8dp" />
 
-    <LinearLayout
-        android:id="@+id/batteryRow"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="10dp"
-        app:layout_constraintStart_toStartOf="@id/mainPanel"
-        app:layout_constraintTop_toBottomOf="@id/temperatureRow">
+                <TextView
+                    android:id="@+id/temperatureValue"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Темп: 0°C"
+                    android:textSize="10sp"
+                    android:textColor="#000000"
+                    android:fontFamily="@font/jeju_gothic" />
+            </LinearLayout>
 
-        <ImageView
-            android:layout_width="25dp"
-            android:layout_height="25dp"
-            android:src="@drawable/battery"
-            app:tint="#000000"
-            android:layout_marginEnd="8dp" />
+            <LinearLayout
+                android:id="@+id/batteryRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Заряд: 100%"
-            android:textSize="10sp"
-            android:textColor="#000000"
-            android:singleLine="true"
-            android:fontFamily="@font/jeju_gothic" />
-    </LinearLayout>
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/battery"
+                    app:tint="#000000"
+                    android:layout_marginEnd="8dp" />
 
-    <LinearLayout
-        android:id="@+id/distanceRow"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginStart="16dp"
-        android:layout_marginTop="10dp"
-        app:layout_constraintStart_toStartOf="@id/mainPanel"
-        app:layout_constraintTop_toBottomOf="@id/batteryRow">
+                <TextView
+                    android:id="@+id/batteryValue"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Время: 0с"
+                    android:textSize="10sp"
+                    android:textColor="#000000"
+                    android:fontFamily="@font/jeju_gothic" />
+            </LinearLayout>
 
-        <ImageView
-            android:layout_width="25dp"
-            android:layout_height="25dp"
-            android:src="@drawable/distance"
-            app:tint="#000000"
-            android:layout_marginEnd="8dp" />
+            <LinearLayout
+                android:id="@+id/distanceRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Расстояние: 10м"
-            android:textSize="10sp"
-            android:textColor="#000000"
-            android:singleLine="true"
-            android:fontFamily="@font/jeju_gothic" />
-    </LinearLayout>
+                <ImageView
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:src="@drawable/distance"
+                    app:tint="#000000"
+                    android:layout_marginEnd="8dp" />
 
-    <LinearLayout
-        android:id="@+id/autoControlRow"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="12dp"
-        android:layout_marginTop="-5dp"
-        app:layout_constraintStart_toStartOf="@id/mainPanel"
-        app:layout_constraintEnd_toEndOf="@id/mainPanel"
-        app:layout_constraintTop_toBottomOf="@id/distanceRow">
+                <TextView
+                    android:id="@+id/distanceValue"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Расст: 0см"
+                    android:textSize="10sp"
+                    android:textColor="#000000"
+                    android:fontFamily="@font/jeju_gothic" />
+            </LinearLayout>
 
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="       Авто управление"
-            android:textSize="10sp"
-            android:textColor="#000000"
-            android:fontFamily="@font/jeju_gothic" />
+            <LinearLayout
+                android:id="@+id/autoControlRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="4dp">
 
-        <androidx.appcompat.widget.SwitchCompat
-            android:id="@+id/autoControlSwitch"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:scaleX="0.8"
-            android:scaleY="0.8"
-            app:thumbTint="#000000"
-            app:trackTint="#FFFFFF" />
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Авто"
+                    android:textSize="10sp"
+                    android:textColor="#000000"
+                    android:fontFamily="@font/jeju_gothic" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/autoControlSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:scaleX="0.7"
+                    android:scaleY="0.7"
+                    app:thumbTint="#000000"
+                    app:trackTint="#CCCCCC" />
+            </LinearLayout>
+
+        </LinearLayout>
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

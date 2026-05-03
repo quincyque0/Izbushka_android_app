@@ -42,7 +42,7 @@ class MainActivity : AppCompatActivity() {
 
     private var isWifiConnected = false
     private val targetWiFiSSID = "Izbushka"
-    private var robotIpAddress = "192.168.4.1"
+    private var robotIpAddress = "192.168.10.1"
     private var robotPort = 80
 
     private var timerSeconds = 10
@@ -89,12 +89,18 @@ class MainActivity : AppCompatActivity() {
         initViews()
         setupClickListeners()
         requestPermissions()
+
+        // АВТОМАТИЧЕСКИ ЗАПУСКАЕМ ПОДКЛЮЧЕНИЕ
+        handler.postDelayed({
+            attemptConnection()
+        }, 500)
     }
 
     private fun loadConnectionSettings() {
         val prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-        robotIpAddress = prefs.getString(KEY_ROBOT_IP, "192.168.4.1") ?: "192.168.4.1"
+        robotIpAddress = prefs.getString(KEY_ROBOT_IP, "192.168.10.1") ?: "192.168.10.1"
         robotPort = prefs.getInt(KEY_ROBOT_PORT, 80)
+        networkManager.updateServerAddress(robotIpAddress, robotPort)
     }
 
     private fun saveConnectionSettings() {
@@ -107,9 +113,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initViews() {
-        val dataLayout = findViewById<LinearLayout>(R.id.Data)
-        bluetoothIcon = dataLayout.getChildAt(0) as ImageView
-        wifiIcon = dataLayout.getChildAt(1) as ImageView
+        bluetoothIcon = findViewById(R.id.bluetoothIcon)
+        wifiIcon = findViewById(R.id.wifiIcon)
 
         waitingForConnectText = findViewById(R.id.WaitingForConnect)
         waitTimerText = findViewById(R.id.WaitTimer)
@@ -234,19 +239,30 @@ class MainActivity : AppCompatActivity() {
                         waitingForConnectText.setTextColor(getColor(android.R.color.holo_orange_dark))
                         isWifiConnected = false
                         updateWiFiIcon()
+                        checkWiFiConnectionDelayed()
                     }
                 } else {
                     waitingForConnectText.text = "Нет Wi-Fi подключения"
                     waitingForConnectText.setTextColor(getColor(android.R.color.holo_red_dark))
                     isWifiConnected = false
                     updateWiFiIcon()
+                    checkWiFiConnectionDelayed()
                 }
             } else {
                 waitingForConnectText.text = "Нет активного подключения"
                 waitingForConnectText.setTextColor(getColor(android.R.color.holo_red_dark))
                 isWifiConnected = false
                 updateWiFiIcon()
+                checkWiFiConnectionDelayed()
             }
+        }
+    }
+
+    private fun checkWiFiConnectionDelayed() {
+        if (isConnecting && !isWifiConnected) {
+            handler.postDelayed({
+                checkWiFiConnection()
+            }, 2000)
         }
     }
 
@@ -325,11 +341,6 @@ class MainActivity : AppCompatActivity() {
             wifiIcon.imageTintList = getColorStateList(android.R.color.darker_gray)
             wifiIcon.alpha = 0.5f
         }
-    }
-
-    private fun updateBluetoothIcon() {
-        bluetoothIcon.imageTintList = getColorStateList(android.R.color.darker_gray)
-        bluetoothIcon.alpha = 0.5f
     }
 
     private fun startConnectionTimer() {

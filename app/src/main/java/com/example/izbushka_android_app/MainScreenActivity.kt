@@ -44,6 +44,9 @@ class MainScreenActivity : AppCompatActivity() {
     private lateinit var buttonVideo: LinearLayout
     private var reconnectAttempts = 0
     private var sensorHandler: Handler? = null
+    private lateinit var temperatureText: TextView
+    private lateinit var batteryText: TextView
+    private lateinit var distanceText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -71,12 +74,17 @@ class MainScreenActivity : AppCompatActivity() {
             insets
         }
 
+        temperatureText = findViewById(R.id.temperatureValue)
+        batteryText = findViewById(R.id.batteryValue)
+        distanceText = findViewById(R.id.distanceValue)
+
         networkManager.setSensorDataCallback { data ->
             runOnUiThread {
                 updateUIWithSensorData(data)
             }
         }
 
+        setupVideoStream()
         setupWebSocket()
         setupButtonLeft()
         setupButtonRight()
@@ -86,6 +94,16 @@ class MainScreenActivity : AppCompatActivity() {
         setupAutoControlSwitch()
         setupJoystick()
         setupButtonVideo()
+    }
+
+    private fun setupVideoStream() {
+        val videoContainer = findViewById<android.widget.FrameLayout>(R.id.videoContainer)
+        videoStreamView = VideoStreamView(this)
+        videoStreamView.setNetworkManager(networkManager)
+        videoContainer.addView(videoStreamView, android.widget.FrameLayout.LayoutParams(
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+            android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+        ))
     }
 
     private fun setupWebSocket() {
@@ -265,7 +283,7 @@ class MainScreenActivity : AppCompatActivity() {
         val autoControlSwitch = findViewById<SwitchCompat>(R.id.autoControlSwitch)
         val isAutoControl = autoControlSwitch.isChecked
 
-        if (!isAutoControl && networkManager.isWebSocketConnected()) {
+        if (!isAutoControl) {
             val angle = Math.toDegrees(Math.atan2(adjustedY.toDouble(), adjustedX.toDouble())).toFloat()
             val angleNormalized = (angle + 360) % 360
 
@@ -300,22 +318,18 @@ class MainScreenActivity : AppCompatActivity() {
         try {
             val distanceObj = data.optJSONObject("distance")
             val distance = distanceObj?.optInt("distance_cm", 0) ?: 0
-
-            val distanceText = findViewById<LinearLayout>(R.id.distanceRow)?.findViewById<TextView>(1)
-            distanceText?.text = "Расстояние: ${distance}см"
+            distanceText.text = "Расст: ${distance}см"
 
             val gyroObj = data.optJSONObject("gyro")
             if (gyroObj != null) {
                 val temperature = gyroObj.optInt("temperature", 0)
-                val temperatureText = findViewById<LinearLayout>(R.id.temperatureRow)?.findViewById<TextView>(1)
-                temperatureText?.text = "Температура: ${temperature}°C"
+                temperatureText.text = "Темп: ${temperature}°C"
             }
 
             val millisObj = data.optJSONObject("millis")
             if (millisObj != null) {
                 val uptime = millisObj.optLong("millis", 0) / 1000
-                val uptimeText = findViewById<LinearLayout>(R.id.batteryRow)?.findViewById<TextView>(1)
-                uptimeText?.text = "Время: ${uptime}с"
+                batteryText.text = "Время: ${uptime}с"
             }
         } catch (e: Exception) {
             Log.e("SensorData", "Error: ${e.message}")
@@ -323,36 +337,30 @@ class MainScreenActivity : AppCompatActivity() {
     }
 
     private fun updateConnectionStatus(connected: Boolean) {
-        val robotImage = findViewById<ImageView>(R.id.robotImage)
-        if (connected) {
-            robotImage.alpha = 1f
-            robotImage.setColorFilter(null)
-        } else {
-            robotImage.alpha = 0.5f
-            robotImage.setColorFilter(Color.GRAY)
-        }
+        // Можно добавить индикатор подключения
     }
 
     private fun showEmotionDialog() {
-        val emotions = arrayOf("happy", "sad", "angry", "surprised", "sleepy")
-        val emotionNames = arrayOf("Счастливый", "Грустный", "Злой", "Удивленный", "Сонный")
+        networkManager.getAvailableEmotions { emotions ->
+            val emotionList = if (emotions.isNotEmpty()) emotions else listOf("happy", "sad", "angry", "surprised", "sleepy")
 
-        AlertDialog.Builder(this)
-            .setTitle("Выберите эмоцию")
-            .setItems(emotionNames) { _, which ->
-                val emotion = emotions[which]
-                networkManager.sendEmotionCommand(emotion) { success ->
-                    if (success) {
-                        Toast.makeText(this, "Эмоция: ${emotionNames[which]}", Toast.LENGTH_SHORT).show()
-                        if (settingsManager.isVibrationEnabled()) {
-                            settingsManager.vibrate(50)
+            AlertDialog.Builder(this)
+                .setTitle("Выберите эмоцию")
+                .setItems(emotionList.toTypedArray()) { _, which ->
+                    val emotion = emotionList[which]
+                    networkManager.sendEmotionCommand(emotion) { success ->
+                        if (success) {
+                            Toast.makeText(this, "Эмоция: ${emotion}", Toast.LENGTH_SHORT).show()
+                            if (settingsManager.isVibrationEnabled()) {
+                                settingsManager.vibrate(50)
+                            }
+                        } else {
+                            Toast.makeText(this, "Не удалось установить эмоцию", Toast.LENGTH_SHORT).show()
                         }
-                    } else {
-                        Toast.makeText(this, "Не удалось установить эмоцию", Toast.LENGTH_SHORT).show()
                     }
                 }
-            }
-            .show()
+                .show()
+        }
     }
 
     private fun showRulesDialog() {
@@ -446,11 +454,9 @@ class MainScreenActivity : AppCompatActivity() {
 
             networkManager.updateServerAddress(newIp, newPort)
             isConnected = false
-            updateConnectionStatus(false)
             networkManager.reconnectWebSocket { success, _ ->
                 if (success) {
                     isConnected = true
-                    updateConnectionStatus(true)
                     if (videoStreamView.isStreamingActive()) {
                         videoStreamView.stopStream()
                         videoStreamView.startStream()
@@ -466,15 +472,6 @@ class MainScreenActivity : AppCompatActivity() {
 
     private fun setupButtonVideo() {
         buttonVideo = findViewById(R.id.buttonVideo)
-        videoStreamView = VideoStreamView(this)
-        videoStreamView.setNetworkManager(networkManager)
-
-        val root = findViewById<androidx.constraintlayout.widget.ConstraintLayout>(R.id.root)
-        root.addView(videoStreamView, androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(
-            androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.MATCH_PARENT,
-            androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.MATCH_PARENT
-        ))
-
         buttonVideo.setOnClickListener {
             if (settingsManager.isSoundsEnabled()) settingsManager.playSound()
             if (settingsManager.isVibrationEnabled()) settingsManager.vibrate(50)
@@ -487,5 +484,8 @@ class MainScreenActivity : AppCompatActivity() {
                 buttonVideo.alpha = 0.6f
             }
         }
+
+        videoStreamView.startStream()
+        buttonVideo.alpha = 0.6f
     }
 }
