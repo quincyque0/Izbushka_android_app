@@ -18,6 +18,11 @@ class NetworkManager(private val context: Context) {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val authManager = AuthManager(context)
 
+
+    private var voiceWebSocket: WebSocket? = null
+    private var isVoiceWebSocketConnected = false
+    private var voiceMessageId = 1L
+
     private var webSocket: WebSocket? = null
     private var isWebSocketConnected = false
     private var connectionStatusCallback: ((Boolean) -> Unit)? = null
@@ -478,6 +483,7 @@ class NetworkManager(private val context: Context) {
         webSocket?.close(1000, "Normal closure")
         webSocket = null
         isWebSocketConnected = false
+        disconnectVoiceWebSocket()
     }
 
     fun reconnectWebSocket(callback: (Boolean, String) -> Unit) {
@@ -591,4 +597,67 @@ class NetworkManager(private val context: Context) {
         authManager.clearTokens()
         disconnectWebSocket()
     }
+    fun connectVoiceWebSocket(callback: (Boolean, String) -> Unit) {
+        if (isVoiceWebSocketConnected) {
+            callback(true, "Already connected")
+            return
+        }
+
+        val token = authManager.getAccessToken()
+        if (token.isNullOrEmpty()) {
+            callback(false, "No auth token")
+            return
+        }
+
+        val request = Request.Builder()
+            .url("$serverAddress/api/broadcast/voice?token=$token")
+            .build()
+
+        voiceWebSocket = client.newWebSocket(request, object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                isVoiceWebSocketConnected = true
+                mainHandler.post {
+                    callback(true, "Voice WebSocket connected")
+                }
+            }
+
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                isVoiceWebSocketConnected = false
+            }
+
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                isVoiceWebSocketConnected = false
+                mainHandler.post {
+                    callback(false, t.message ?: "Connection failed")
+                }
+            }
+        })
+    }
+
+
+    fun sendVoiceData(audioData: ByteArray, messageId: Long) {
+        if (!isVoiceWebSocketConnected) {
+            return
+        }
+
+        try {
+            voiceWebSocket?.send(okio.ByteString.of(*audioData))
+        } catch (e: Exception) {
+        }
+    }
+
+
+    fun disconnectVoiceWebSocket() {
+        voiceWebSocket?.close(1000, "Normal closure")
+        voiceWebSocket = null
+        isVoiceWebSocketConnected = false
+    }
+
+    fun isVoiceWebSocketConnected(): Boolean = isVoiceWebSocketConnected
+
+
+    fun getNextVoiceMessageId(): Long = voiceMessageId++
+
+    // Обновите disconnectWebSocket для закрытия голосового соединения
+
 }

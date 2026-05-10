@@ -173,10 +173,13 @@
         android:gravity="center"
         android:layout_marginEnd="30dp"
         android:layout_marginBottom="10dp"
+        android:clickable="true"
+        android:focusable="true"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toTopOf="@id/mainPanel">
 
         <ImageView
+            android:id="@+id/microphoneIcon"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:src="@drawable/microphone"
