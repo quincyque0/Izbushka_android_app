@@ -41,8 +41,24 @@ class MainScreenActivity : AppCompatActivity() {
     private var maxDistance = 0f
     private var activePointerId = -1
     private var isDragging = false
-    private var lastCommandTime = 0L
-    private val commandInterval = 50L
+
+    companion object {
+        private const val ACTION_INTERVAL_MS = 17L
+        private const val SPEED_INTERVAL_MS = 230L
+        private const val SPEED_CRITICAL_INTERVAL_MS = 50L
+        private const val SPEED_ZONES = 4
+        private const val STOP_RETRY_MS = 100L
+        private const val MIN_SPEED = 25
+        private const val MAX_SPEED = 200
+    }
+
+    private var lastSentAction: String? = null
+    private var lastSentSpeed: Int? = null
+    private var lastActionSendTime = 0L
+    private var lastSpeedSendTime = 0L
+    private var lastCriticalSpeedSendTime = 0L
+    private var stopRetryHandler: Handler? = null
+    private var stopRetryRunnable: Runnable? = null
     private var isConnected = false
     private lateinit var videoStreamView: VideoStreamView
     private lateinit var buttonVideo: LinearLayout
@@ -342,7 +358,7 @@ class MainScreenActivity : AppCompatActivity() {
                     isDragging = false
                     resetJoystick()
                     activePointerId = -1
-                    sendJoystickData(0f, 0f)
+                    handleJoystickRelease()
                     true
                 }
                 else -> false
@@ -368,7 +384,7 @@ class MainScreenActivity : AppCompatActivity() {
         joystickKnob.translationY = dy
 
         val normalizedX = dx / maxDistance
-        val normalizedY = dy / maxDistance
+        val normalizedY = -dy / maxDistance
 
         sendJoystickData(normalizedX, normalizedY)
     }
@@ -381,35 +397,133 @@ class MainScreenActivity : AppCompatActivity() {
             .start()
     }
 
-    private fun sendJoystickData(x: Float, y: Float) {
-        val currentTime = System.currentTimeMillis()
-        if (currentTime - lastCommandTime < commandInterval) {
-            return
+    /**
+     * Маппинг угла в действие — идентично angleToAction() из control.js:
+     * nipplejs: 0° = вправо, 90° = вверх, CCW.
+     * После инверсии Y atan2 даёт те же углы что и nipplejs.
+     */
+    private fun angleToAction(angleDegrees: Float): String {
+        val normalized = ((angleDegrees % 360) + 360) % 360
+        return when {
+            normalized >= 45 && normalized < 135 -> "move_forward"
+            normalized >= 135 && normalized < 225 -> "turn_left"
+            normalized >= 225 && normalized < 315 -> "move_backward"
+            else -> "turn_right"
         }
-        lastCommandTime = currentTime
+    }
+
+    /**
+     * Маппинг силы в скорость — идентично forceToSpeed() из control.js:
+     * force 0..1 (нормализованный) -> speed MIN_SPEED..MAX_SPEED
+     */
+    private fun forceToSpeed(force: Float): Int {
+        val clamped = force.coerceIn(0f, 1f)
+        return Math.round(MIN_SPEED + clamped * (MAX_SPEED - MIN_SPEED))
+    }
+
+    /**
+     * Определяет зону скорости (0..SPEED_ZONES-1) для throttling.
+     * Смена зоны = критическое изменение, отправляется с меньшей задержкой.
+     */
+    private fun getSpeedZone(speed: Int): Int {
+        val zoneSize = (MAX_SPEED - MIN_SPEED).toFloat() / SPEED_ZONES
+        return ((speed - MIN_SPEED) / zoneSize).toInt().coerceIn(0, SPEED_ZONES - 1)
+    }
+
+    /**
+     * Отменяет запланированный повторный stop.
+     */
+    private fun cancelStopRetry() {
+        stopRetryRunnable?.let { stopRetryHandler?.removeCallbacks(it) }
+        stopRetryRunnable = null
+    }
+
+    /**
+     * Планирует повторную отправку stop через STOP_RETRY_MS для надёжности.
+     */
+    private fun scheduleStopRetry() {
+        cancelStopRetry()
+        if (stopRetryHandler == null) {
+            stopRetryHandler = Handler(Looper.getMainLooper())
+        }
+        stopRetryRunnable = Runnable {
+            stopRetryRunnable = null
+            networkManager.stopMotorsWs()
+        }
+        stopRetryHandler?.postDelayed(stopRetryRunnable!!, STOP_RETRY_MS)
+    }
+
+    /**
+     * Обработка отпускания джойстика — отправляет stop + планирует retry.
+     */
+    private fun handleJoystickRelease() {
+        lastSentAction = "stop"
+        lastSentSpeed = 0
+        networkManager.stopMotorsWs()
+        scheduleStopRetry()
+    }
+
+    /**
+     * Отправка команды джойстика с трёхуровневым throttling (как в control.js):
+     * - Смена направления (action): минимум ACTION_INTERVAL_MS (17ms)
+     * - Смена зоны скорости: минимум SPEED_CRITICAL_INTERVAL_MS (50ms)
+     * - Изменение скорости в пределах зоны: минимум SPEED_INTERVAL_MS (230ms)
+     */
+    private fun sendJoystickData(x: Float, y: Float) {
+        val autoControlSwitch = findViewById<SwitchCompat>(R.id.autoControlSwitch)
+        val isAutoControl = autoControlSwitch.isChecked
+        if (isAutoControl) return
 
         val sensitivity = settingsManager.getSensitivity() / 50f
         val adjustedX = x * sensitivity
         val adjustedY = y * sensitivity
 
-        val autoControlSwitch = findViewById<SwitchCompat>(R.id.autoControlSwitch)
-        val isAutoControl = autoControlSwitch.isChecked
+        val angle = Math.toDegrees(Math.atan2(adjustedY.toDouble(), adjustedX.toDouble())).toFloat()
+        val action = angleToAction(angle)
 
-        if (!isAutoControl) {
-            val angle = Math.toDegrees(Math.atan2(adjustedY.toDouble(), adjustedX.toDouble())).toFloat()
-            val angleNormalized = (angle + 360) % 360
+        val force = Math.sqrt((adjustedX * adjustedX + adjustedY * adjustedY).toDouble()).toFloat()
+        val speed = forceToSpeed(force.coerceIn(0f, 1f))
 
-            val action = when {
-                angleNormalized in 45.0..135.0 -> "move_forward"
-                angleNormalized in 135.0..225.0 -> "turn_left"
-                angleNormalized in 225.0..315.0 -> "move_backward"
-                else -> "turn_right"
+        val now = System.currentTimeMillis()
+        val actionChanged = action != lastSentAction
+        val speedChanged = speed != lastSentSpeed
+
+        if (!actionChanged && !speedChanged) return
+
+        cancelStopRetry()
+
+        if (actionChanged) {
+            val elapsed = now - lastActionSendTime
+            if (elapsed >= ACTION_INTERVAL_MS) {
+                networkManager.sendMotorCommandWs(action, speed)
+                lastSentAction = action
+                lastSentSpeed = speed
+                lastActionSendTime = now
+                lastSpeedSendTime = now
             }
+        } else {
+            val prevZone = getSpeedZone(lastSentSpeed ?: MIN_SPEED)
+            val newZone = getSpeedZone(speed)
+            val isCritical = newZone != prevZone
 
-            val force = Math.sqrt((adjustedX * adjustedX + adjustedY * adjustedY).toDouble()).toFloat()
-            val speed = (25 + force * 175).toInt().coerceIn(25, 200)
-
-            networkManager.sendMotorCommand(action, speed)
+            if (isCritical) {
+                val elapsed = now - lastCriticalSpeedSendTime
+                if (elapsed >= SPEED_CRITICAL_INTERVAL_MS) {
+                    networkManager.sendMotorCommandWs(action, speed)
+                    lastSentAction = action
+                    lastSentSpeed = speed
+                    lastCriticalSpeedSendTime = now
+                    lastSpeedSendTime = now
+                }
+            } else {
+                val elapsed = now - lastSpeedSendTime
+                if (elapsed >= SPEED_INTERVAL_MS) {
+                    networkManager.sendMotorCommandWs(action, speed)
+                    lastSentAction = action
+                    lastSentSpeed = speed
+                    lastSpeedSendTime = now
+                }
+            }
         }
     }
 

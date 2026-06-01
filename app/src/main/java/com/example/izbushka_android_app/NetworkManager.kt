@@ -157,6 +157,46 @@ class NetworkManager(private val context: Context) {
         sendPostRequest(url, json.toString())
     }
 
+    /**
+     * Отправляет команду моторам через WebSocket (как в control.js из izbushka-web-core).
+     * Формат: { event: "robot.motors", data: { action, speed, wait_response } }
+     * Если WebSocket не подключён — fallback на REST.
+     */
+    fun sendMotorCommandWs(action: String, speed: Int) {
+        if (isWebSocketConnected && webSocket != null) {
+            val message = JSONObject().apply {
+                put("event", "robot.motors")
+                put("data", JSONObject().apply {
+                    put("action", action)
+                    put("speed", speed.coerceIn(0, 255))
+                    put("wait_response", false)
+                })
+            }
+            webSocket?.send(message.toString())
+        } else {
+            sendMotorCommand(action, speed)
+        }
+    }
+
+    /**
+     * Отправляет команду остановки через WebSocket.
+     */
+    fun stopMotorsWs() {
+        if (isWebSocketConnected && webSocket != null) {
+            val message = JSONObject().apply {
+                put("event", "robot.motors")
+                put("data", JSONObject().apply {
+                    put("action", "stop")
+                    put("speed", 0)
+                    put("wait_response", false)
+                })
+            }
+            webSocket?.send(message.toString())
+        } else {
+            stopMotors()
+        }
+    }
+
     fun setMotorSpeed(speedLeft: Int, speedRight: Int) {
         val url = "$serverAddress/api/robot/motors/speed"
         val json = JSONObject().apply {
@@ -658,6 +698,5 @@ class NetworkManager(private val context: Context) {
 
     fun getNextVoiceMessageId(): Long = voiceMessageId++
 
-    // Обновите disconnectWebSocket для закрытия голосового соединения
 
 }
