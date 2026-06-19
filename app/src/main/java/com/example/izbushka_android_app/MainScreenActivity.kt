@@ -65,16 +65,6 @@ class MainScreenActivity : AppCompatActivity() {
     private lateinit var videoStreamView: VideoStreamView
     private lateinit var buttonVideo: LinearLayout
     private var reconnectAttempts = 0
-    private var sensorHandler: Handler? = null
-    private lateinit var temperatureText: TextView
-    private lateinit var batteryText: TextView
-    private lateinit var distanceText: TextView
-
-    private lateinit var microphoneButton: LinearLayout
-    private lateinit var microphoneIcon: ImageView
-    private var audioRecorder: AudioRecorder? = null
-    private var isMicrophoneActive = false
-    private val REQUEST_RECORD_AUDIO_PERMISSION = 200
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -102,15 +92,7 @@ class MainScreenActivity : AppCompatActivity() {
             insets
         }
 
-        temperatureText = findViewById(R.id.temperatureValue)
-        batteryText = findViewById(R.id.batteryValue)
-        distanceText = findViewById(R.id.distanceValue)
 
-        networkManager.setSensorDataCallback { data ->
-            runOnUiThread {
-                updateUIWithSensorData(data)
-            }
-        }
 
         networkManager.setEmotionChangedCallback { emotion ->
             runOnUiThread {
@@ -130,12 +112,9 @@ class MainScreenActivity : AppCompatActivity() {
         setupButtonRight()
         setupButtonRules()
         setupButtonAboveJoystick()
-        setupButtonAboveMain()
         setupAutoControlSwitch()
         setupJoystick()
         setupButtonVideo()
-
-        requestMicrophonePermission()
     }
 
     private fun setupVideoStream() {
@@ -154,7 +133,6 @@ class MainScreenActivity : AppCompatActivity() {
             updateConnectionStatus(connected)
             if (connected) {
                 reconnectAttempts = 0
-                startSensorPolling()
                 Toast.makeText(this, "WebSocket подключен", Toast.LENGTH_SHORT).show()
             } else {
                 if (reconnectAttempts < 5) {
@@ -184,10 +162,7 @@ class MainScreenActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         videoStreamView.stopStream()
-        sensorHandler?.removeCallbacksAndMessages(null)
         networkManager.disconnectWebSocket()
-        audioRecorder?.stopRecording()
-        networkManager.disconnectVoiceWebSocket()
     }
 
     private fun setupButtonLeft() {
@@ -226,112 +201,7 @@ class MainScreenActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupButtonAboveMain() {
-        microphoneButton = findViewById(R.id.buttonAboveMain)
-        microphoneIcon = findViewById(R.id.microphoneIcon)
 
-        microphoneButton.setOnTouchListener { _, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    startVoiceRecording()
-                    true
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    stopVoiceRecording()
-                    true
-                }
-                else -> false
-            }
-        }
-    }
-
-    private fun requestMicrophonePermission() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-            != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.RECORD_AUDIO),
-                REQUEST_RECORD_AUDIO_PERMISSION
-            )
-        } else {
-            setupMicrophone()
-        }
-    }
-
-    private fun setupMicrophone() {
-        networkManager.connectVoiceWebSocket { success, message ->
-            if (success) {
-                Log.d("Voice", "Voice WebSocket connected")
-            } else {
-                Log.e("Voice", "Failed to connect voice WebSocket: $message")
-            }
-        }
-
-        audioRecorder = AudioRecorder { audioData ->
-            if (isMicrophoneActive) {
-                val messageId = networkManager.getNextVoiceMessageId()
-                networkManager.sendVoiceData(audioData, messageId)
-            }
-        }
-    }
-
-    private fun startVoiceRecording() {
-        if (isMicrophoneActive) return
-
-        isMicrophoneActive = true
-        microphoneIcon.setImageResource(R.drawable.microphone_active)
-        microphoneIcon.imageTintList = null
-        if (settingsManager.isVibrationEnabled()) {
-            settingsManager.vibrate(30)
-        }
-
-        if (!networkManager.isVoiceWebSocketConnected()) {
-            networkManager.connectVoiceWebSocket { success, _ ->
-                if (success) {
-                    startRecordingInternal()
-                } else {
-                    runOnUiThread {
-                        Toast.makeText(this, "Ошибка подключения голосового канала", Toast.LENGTH_SHORT).show()
-                        stopVoiceRecording()
-                    }
-                }
-            }
-        } else {
-            startRecordingInternal()
-        }
-    }
-
-    private fun startRecordingInternal() {
-        audioRecorder?.startRecording()
-        Toast.makeText(this, "🎤 Запись голоса...", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun stopVoiceRecording() {
-        if (!isMicrophoneActive) return
-
-        isMicrophoneActive = false
-        microphoneIcon.setImageResource(R.drawable.microphone)
-        microphoneIcon.setColorFilter(ContextCompat.getColor(this, android.R.color.black))
-        audioRecorder?.stopRecording()
-        Toast.makeText(this, "🎤 Запись остановлена", Toast.LENGTH_SHORT).show()
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when (requestCode) {
-            REQUEST_RECORD_AUDIO_PERMISSION -> {
-                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    setupMicrophone()
-                } else {
-                    Toast.makeText(this, "Нет разрешения на запись аудио", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
 
     private fun setupAutoControlSwitch() {
         val autoControlSwitch = findViewById<SwitchCompat>(R.id.autoControlSwitch)
@@ -521,40 +391,7 @@ class MainScreenActivity : AppCompatActivity() {
         }
     }
 
-    private fun startSensorPolling() {
-        sensorHandler = Handler(Looper.getMainLooper())
-        val runnable = object : Runnable {
-            override fun run() {
-                if (isConnected) {
-                    networkManager.getSensorData()
-                }
-                sensorHandler?.postDelayed(this, 1000)
-            }
-        }
-        sensorHandler?.post(runnable)
-    }
 
-    private fun updateUIWithSensorData(data: JSONObject) {
-        try {
-            val distanceObj = data.optJSONObject("distance")
-            val distance = distanceObj?.optInt("distance_cm", 0) ?: 0
-            distanceText.text = "Расст: ${distance}см"
-
-            val gyroObj = data.optJSONObject("gyro")
-            if (gyroObj != null) {
-                val temperature = gyroObj.optInt("temperature", 0)
-                temperatureText.text = "Темп: ${temperature}°C"
-            }
-
-            val millisObj = data.optJSONObject("millis")
-            if (millisObj != null) {
-                val uptime = millisObj.optLong("millis", 0) / 1000
-                batteryText.text = "Время: ${uptime}с"
-            }
-        } catch (e: Exception) {
-            Log.e("SensorData", "Error: ${e.message}")
-        }
-    }
 
     private fun updateConnectionStatus(connected: Boolean) {
     }
