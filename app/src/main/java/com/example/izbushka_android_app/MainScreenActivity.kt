@@ -48,8 +48,10 @@ class MainScreenActivity : AppCompatActivity() {
         private const val SPEED_CRITICAL_INTERVAL_MS = 50L
         private const val SPEED_ZONES = 4
         private const val STOP_RETRY_MS = 100L
+        private const val DEAD_ZONE = 0f
         private const val MIN_SPEED = 25
         private const val MAX_SPEED = 200
+        private const val MAX_FORCE = 2.0f
     }
 
     private var lastSentAction: String? = null
@@ -107,6 +109,18 @@ class MainScreenActivity : AppCompatActivity() {
         networkManager.setSensorDataCallback { data ->
             runOnUiThread {
                 updateUIWithSensorData(data)
+            }
+        }
+
+        networkManager.setEmotionChangedCallback { emotion ->
+            runOnUiThread {
+                Toast.makeText(this, "Эмоция изменена: $emotion", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        networkManager.setErrorCallback { message ->
+            runOnUiThread {
+                Toast.makeText(this, "Ошибка: $message", Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -397,11 +411,7 @@ class MainScreenActivity : AppCompatActivity() {
             .start()
     }
 
-    /**
-     * Маппинг угла в действие — идентично angleToAction() из control.js:
-     * nipplejs: 0° = вправо, 90° = вверх, CCW.
-     * После инверсии Y atan2 даёт те же углы что и nipplejs.
-     */
+
     private fun angleToAction(angleDegrees: Float): String {
         val normalized = ((angleDegrees % 360) + 360) % 360
         return when {
@@ -412,35 +422,26 @@ class MainScreenActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Маппинг силы в скорость — идентично forceToSpeed() из control.js:
-     * force 0..1 (нормализованный) -> speed MIN_SPEED..MAX_SPEED
-     */
+
     private fun forceToSpeed(force: Float): Int {
-        val clamped = force.coerceIn(0f, 1f)
-        return Math.round(MIN_SPEED + clamped * (MAX_SPEED - MIN_SPEED))
+        val clamped = force.coerceIn(DEAD_ZONE, MAX_FORCE)
+        val ratio = (clamped - DEAD_ZONE) / (MAX_FORCE - DEAD_ZONE)
+        return Math.round(MIN_SPEED + ratio * (MAX_SPEED - MIN_SPEED))
     }
 
-    /**
-     * Определяет зону скорости (0..SPEED_ZONES-1) для throttling.
-     * Смена зоны = критическое изменение, отправляется с меньшей задержкой.
-     */
+
     private fun getSpeedZone(speed: Int): Int {
         val zoneSize = (MAX_SPEED - MIN_SPEED).toFloat() / SPEED_ZONES
         return ((speed - MIN_SPEED) / zoneSize).toInt().coerceIn(0, SPEED_ZONES - 1)
     }
 
-    /**
-     * Отменяет запланированный повторный stop.
-     */
+
     private fun cancelStopRetry() {
         stopRetryRunnable?.let { stopRetryHandler?.removeCallbacks(it) }
         stopRetryRunnable = null
     }
 
-    /**
-     * Планирует повторную отправку stop через STOP_RETRY_MS для надёжности.
-     */
+
     private fun scheduleStopRetry() {
         cancelStopRetry()
         if (stopRetryHandler == null) {
@@ -453,9 +454,7 @@ class MainScreenActivity : AppCompatActivity() {
         stopRetryHandler?.postDelayed(stopRetryRunnable!!, STOP_RETRY_MS)
     }
 
-    /**
-     * Обработка отпускания джойстика — отправляет stop + планирует retry.
-     */
+
     private fun handleJoystickRelease() {
         lastSentAction = "stop"
         lastSentSpeed = 0
@@ -463,12 +462,7 @@ class MainScreenActivity : AppCompatActivity() {
         scheduleStopRetry()
     }
 
-    /**
-     * Отправка команды джойстика с трёхуровневым throttling (как в control.js):
-     * - Смена направления (action): минимум ACTION_INTERVAL_MS (17ms)
-     * - Смена зоны скорости: минимум SPEED_CRITICAL_INTERVAL_MS (50ms)
-     * - Изменение скорости в пределах зоны: минимум SPEED_INTERVAL_MS (230ms)
-     */
+
     private fun sendJoystickData(x: Float, y: Float) {
         val autoControlSwitch = findViewById<SwitchCompat>(R.id.autoControlSwitch)
         val isAutoControl = autoControlSwitch.isChecked
@@ -482,7 +476,7 @@ class MainScreenActivity : AppCompatActivity() {
         val action = angleToAction(angle)
 
         val force = Math.sqrt((adjustedX * adjustedX + adjustedY * adjustedY).toDouble()).toFloat()
-        val speed = forceToSpeed(force.coerceIn(0f, 1f))
+        val speed = forceToSpeed(force.coerceIn(0f, MAX_FORCE))
 
         val now = System.currentTimeMillis()
         val actionChanged = action != lastSentAction

@@ -27,6 +27,8 @@ class NetworkManager(private val context: Context) {
     private var isWebSocketConnected = false
     private var connectionStatusCallback: ((Boolean) -> Unit)? = null
     private var sensorDataCallback: ((JSONObject) -> Unit)? = null
+    private var emotionChangedCallback: ((String) -> Unit)? = null
+    private var errorCallback: ((String) -> Unit)? = null
 
     private var isStreaming = false
     private var streamThread: Thread? = null
@@ -65,6 +67,14 @@ class NetworkManager(private val context: Context) {
 
     fun setSensorDataCallback(callback: (JSONObject) -> Unit) {
         sensorDataCallback = callback
+    }
+
+    fun setEmotionChangedCallback(callback: (String) -> Unit) {
+        emotionChangedCallback = callback
+    }
+
+    fun setErrorCallback(callback: (String) -> Unit) {
+        errorCallback = callback
     }
 
     fun login(username: String, password: String, callback: (Boolean, String) -> Unit) {
@@ -129,39 +139,27 @@ class NetworkManager(private val context: Context) {
         }.start()
     }
 
+
     fun sendMotorCommand(action: String, speed: Int) {
-        val direction = actionToDirection(action)
         val url = "$serverAddress/api/robot/motors/move"
         val json = JSONObject().apply {
-            put("direction", direction)
+            put("action", action)
             put("speed", speed.coerceIn(0, 255))
         }
         sendPostRequest(url, json.toString())
     }
 
-    private fun actionToDirection(action: String): String {
-        return when (action) {
-            "move_forward" -> "forward"
-            "move_backward" -> "backward"
-            "turn_left" -> "left"
-            "turn_right" -> "right"
-            else -> "stop"
-        }
-    }
 
     fun stopMotors() {
-        val url = "$serverAddress/api/robot/motors/stop"
+        val url = "$serverAddress/api/robot/motors/move"
         val json = JSONObject().apply {
-            put("mode", "stop")
+            put("action", "stop")
+            put("speed", 0)
         }
         sendPostRequest(url, json.toString())
     }
 
-    /**
-     * Отправляет команду моторам через WebSocket (как в control.js из izbushka-web-core).
-     * Формат: { event: "robot.motors", data: { action, speed, wait_response } }
-     * Если WebSocket не подключён — fallback на REST.
-     */
+
     fun sendMotorCommandWs(action: String, speed: Int) {
         if (isWebSocketConnected && webSocket != null) {
             val message = JSONObject().apply {
@@ -178,9 +176,7 @@ class NetworkManager(private val context: Context) {
         }
     }
 
-    /**
-     * Отправляет команду остановки через WebSocket.
-     */
+
     fun stopMotorsWs() {
         if (isWebSocketConnected && webSocket != null) {
             val message = JSONObject().apply {
@@ -225,12 +221,23 @@ class NetworkManager(private val context: Context) {
         sendPostRequest(url, json.toString())
     }
 
+
+    private fun unwrapApiResponse(response: String): JSONObject? {
+        if (response.isEmpty()) return null
+        return try {
+            val json = JSONObject(response)
+            json.optJSONObject("data") ?: json
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     fun getDistance(callback: (Float?) -> Unit) {
         val url = "$serverAddress/api/robot/sensors/distance"
         sendGetRequest(url) { response ->
             try {
-                val json = JSONObject(response)
-                callback(json.optDouble("distance_cm", -1.0).toFloat())
+                val data = unwrapApiResponse(response)
+                callback(data?.optDouble("distance_cm", -1.0)?.toFloat())
             } catch (e: Exception) {
                 callback(null)
             }
@@ -241,8 +248,8 @@ class NetworkManager(private val context: Context) {
         val url = "$serverAddress/api/robot/sensors/gyro"
         sendGetRequest(url) { response ->
             try {
-                val json = JSONObject(response)
-                callback(json)
+                val data = unwrapApiResponse(response)
+                callback(data)
             } catch (e: Exception) {
                 callback(null)
             }
@@ -253,8 +260,8 @@ class NetworkManager(private val context: Context) {
         val url = "$serverAddress/api/robot/sensors/millis"
         sendGetRequest(url) { response ->
             try {
-                val json = JSONObject(response)
-                callback(json.optLong("millis", -1))
+                val data = unwrapApiResponse(response)
+                callback(data?.optLong("millis", -1))
             } catch (e: Exception) {
                 callback(null)
             }
@@ -274,8 +281,8 @@ class NetworkManager(private val context: Context) {
 
                 if (conn.responseCode == HttpURLConnection.HTTP_OK) {
                     val response = conn.inputStream.bufferedReader().use { it.readText() }
-                    val json = JSONObject(response)
-                    result.put("distance", json)
+                    val json = unwrapApiResponse(response)
+                    if (json != null) result.put("distance", json)
                 }
                 conn.disconnect()
             } catch (e: Exception) { }
@@ -289,8 +296,8 @@ class NetworkManager(private val context: Context) {
 
                 if (conn.responseCode == HttpURLConnection.HTTP_OK) {
                     val response = conn.inputStream.bufferedReader().use { it.readText() }
-                    val json = JSONObject(response)
-                    result.put("gyro", json)
+                    val json = unwrapApiResponse(response)
+                    if (json != null) result.put("gyro", json)
                 }
                 conn.disconnect()
             } catch (e: Exception) { }
@@ -304,8 +311,8 @@ class NetworkManager(private val context: Context) {
 
                 if (conn.responseCode == HttpURLConnection.HTTP_OK) {
                     val response = conn.inputStream.bufferedReader().use { it.readText() }
-                    val json = JSONObject(response)
-                    result.put("millis", json)
+                    val json = unwrapApiResponse(response)
+                    if (json != null) result.put("millis", json)
                 }
                 conn.disconnect()
             } catch (e: Exception) { }
@@ -426,8 +433,8 @@ class NetworkManager(private val context: Context) {
         val url = "$serverAddress/api/emotions/current"
         sendGetRequest(url) { response ->
             try {
-                val json = JSONObject(response)
-                callback(json.optString("emotion", null))
+                val data = unwrapApiResponse(response)
+                callback(data?.optString("emotion", null))
             } catch (e: Exception) {
                 callback(null)
             }
@@ -438,8 +445,8 @@ class NetworkManager(private val context: Context) {
         val url = "$serverAddress/api/emotions"
         sendGetRequest(url) { response ->
             try {
-                val json = JSONObject(response)
-                val emotionsArray = json.optJSONArray("emotions")
+                val data = unwrapApiResponse(response)
+                val emotionsArray = data?.optJSONArray("emotions")
                 val emotions = mutableListOf<String>()
                 if (emotionsArray != null) {
                     for (i in 0 until emotionsArray.length()) {
@@ -450,6 +457,22 @@ class NetworkManager(private val context: Context) {
             } catch (e: Exception) {
                 callback(emptyList())
             }
+        }
+    }
+
+
+    fun sendEmotionCommandWs(emotion: String) {
+        if (isWebSocketConnected && webSocket != null) {
+            val message = JSONObject().apply {
+                put("event", "robot.emotion")
+                put("data", JSONObject().apply {
+                    put("action", "set")
+                    put("emotion", emotion)
+                })
+            }
+            webSocket?.send(message.toString())
+        } else {
+            sendEmotionCommand(emotion)
         }
     }
 
@@ -465,8 +488,9 @@ class NetworkManager(private val context: Context) {
             return
         }
 
+        val wsUrl = serverAddress.replace("http://", "ws://").replace("https://", "wss://")
         val request = Request.Builder()
-            .url("$serverAddress/ws?token=$token")
+            .url("$wsUrl/ws?token=$token")
             .build()
 
         webSocket = client.newWebSocket(request, object : WebSocketListener() {
@@ -496,6 +520,20 @@ class NetworkManager(private val context: Context) {
                             val connected = data?.optBoolean("connected") == true
                             mainHandler.post {
                                 connectionStatusCallback?.invoke(connected)
+                            }
+                        }
+                        "system.emotion_changed" -> {
+                            val emotion = data?.optString("emotion", null)
+                            if (emotion != null) {
+                                mainHandler.post {
+                                    emotionChangedCallback?.invoke(emotion)
+                                }
+                            }
+                        }
+                        "system.error" -> {
+                            val message = data?.optString("message", "Unknown error") ?: "Unknown error"
+                            mainHandler.post {
+                                errorCallback?.invoke(message)
                             }
                         }
                     }
@@ -649,8 +687,9 @@ class NetworkManager(private val context: Context) {
             return
         }
 
+        val wsUrl = serverAddress.replace("http://", "ws://").replace("https://", "wss://")
         val request = Request.Builder()
-            .url("$serverAddress/api/broadcast/voice?token=$token")
+            .url("$wsUrl/api/broadcast/voice?token=$token")
             .build()
 
         voiceWebSocket = client.newWebSocket(request, object : WebSocketListener() {
@@ -699,4 +738,62 @@ class NetworkManager(private val context: Context) {
     fun getNextVoiceMessageId(): Long = voiceMessageId++
 
 
+
+
+    fun createQuestion(
+        question: String,
+        answer: String? = null,
+        topic: String? = null,
+        callback: ((Boolean, String) -> Unit)? = null
+    ) {
+        val url = "$serverAddress/api/questions"
+        val json = JSONObject().apply {
+            put("question", question)
+            if (answer != null) put("answer", answer)
+            if (topic != null) put("topic", topic)
+            put("source", "android")
+        }
+        sendPostRequest(url, json.toString(), callback)
+    }
+
+
+    fun getQuestions(callback: (org.json.JSONArray?) -> Unit) {
+        val url = "$serverAddress/api/questions"
+        sendGetRequest(url) { response ->
+            try {
+                val data = unwrapApiResponse(response)
+                callback(data?.optJSONArray("items") ?: data?.optJSONArray("questions"))
+            } catch (e: Exception) {
+                callback(null)
+            }
+        }
+    }
+
+
+    fun getQuestionsStats(callback: (JSONObject?) -> Unit) {
+        val url = "$serverAddress/api/questions/stats"
+        sendGetRequest(url) { response ->
+            try {
+                val data = unwrapApiResponse(response)
+                callback(data)
+            } catch (e: Exception) {
+                callback(null)
+            }
+        }
+    }
+
+
+    fun requestSensorDataWs() {
+        if (isWebSocketConnected && webSocket != null) {
+            val message = JSONObject().apply {
+                put("event", "robot.sensors")
+                put("data", JSONObject().apply {
+                    put("action", "get")
+                })
+            }
+            webSocket?.send(message.toString())
+        } else {
+            getSensorData()
+        }
+    }
 }
